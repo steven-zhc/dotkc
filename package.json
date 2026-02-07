@@ -1,0 +1,27 @@
+{
+  "name": "dotkc",
+  "version": "0.1.0",
+  "description": "Keychain-backed secrets + dotenv-style runner (macOS/iCloud)",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "dotkc": "./bin/dotkc.mjs"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "keytar": "^7.9.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steven-zhc/dotkc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/steven-zhc/dotkc/issues"
+  },
+  "homepage": "https://github.com/steven-zhc/dotkc#readme"
+}
