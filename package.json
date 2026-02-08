@@ -10,6 +10,9 @@
   "files": [
     "bin/"
   ],
+  "scripts": {
+    "test": "node ./bin/dotkc.mjs --help > /dev/null"
+  },
   "engines": {
     "node": ">=18"
   },
