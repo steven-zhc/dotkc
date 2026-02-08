@@ -1,5 +1,8 @@
 # dotkc
 
+[![npm version](https://img.shields.io/npm/v/dotkc.svg)](https://www.npmjs.com/package/dotkc)
+[![license](https://img.shields.io/npm/l/dotkc.svg)](./LICENSE)
+
 Keychain-backed secrets with a dotenv-style CLI runner.
 
 `dotkc` stores secrets in your OS credential store (macOS Keychain), which can be synced across Macs via **iCloud Keychain**.
