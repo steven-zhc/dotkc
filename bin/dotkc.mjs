@@ -94,7 +94,7 @@ function securityFindAccountsByService(service) {
 function usage(code = 0) {
   const txt = `
 Usage:
-  dotkc set <service> <category> <KEY> <value|->
+  dotkc set <service> <category> <KEY> [value|-]
   dotkc get <service> <category> <KEY>
   dotkc del <service> <category> <KEY>
 
@@ -139,7 +139,8 @@ Examples:
   dotkc import vercel acme-app-dev .env
 
 Notes:
-- Prefer '-' (stdin) for values to avoid shell history.
+- For set, omit the value to enter it securely (hidden prompt). Use '-' to read from stdin.
+- Avoid pasting secrets directly into your shell history.
 - 'list <service>' shows categories; 'list <service> <category>' shows keys (no values).
 - Wildcard run loads ALL secrets whose account starts with "<category>:".
 - Category should avoid ':' to keep parsing unambiguous.
@@ -262,14 +263,43 @@ if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') usage(argv.le
 
 const cmd = argv[0];
 
+async function promptHidden(promptText) {
+  if (!process.stdin.isTTY) die('Prompt requires a TTY.', 2);
+  return await new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+
+    // hide input by overriding output
+    // eslint-disable-next-line no-underscore-dangle
+    rl._writeToOutput = function _writeToOutput() {};
+
+    process.stdout.write(promptText);
+    rl.question('', (answer) => {
+      rl.close();
+      process.stdout.write('\n');
+      resolve(answer);
+    });
+  });
+}
+
 if (cmd === 'set') {
   const [service, category, key, value] = argv.slice(1);
-  if (!service || !category || !key || typeof value !== 'string') usage(1);
-  let secret = value;
-  if (value === '-') {
-    if (process.stdin.isTTY) die('Refusing to read from TTY. Pipe the value into stdin.', 2);
+  if (!service || !category || !key) usage(1);
+
+  // Value sources:
+  // - '-' : stdin (non-tty)
+  // - omitted : prompt (tty, hidden)
+  // - string : direct
+  let secret;
+
+  if (typeof value !== 'string') {
+    secret = await promptHidden(`Enter value for ${service}:${category}:${key} (input hidden): `);
+  } else if (value === '-') {
+    if (process.stdin.isTTY) die("Use the prompt form (omit value) or pipe to stdin (value='-') in non-interactive mode.", 2);
     secret = (await readAllStdin()).replace(/\r?\n$/, '');
+  } else {
+    secret = value;
   }
+
   if (!secret) die('Empty value; nothing stored.', 2);
   securitySet(service, `${category}:${key}`, secret);
   console.log('OK');

@@ -11,8 +11,8 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 
 - `dotkc` does **not** upload secrets anywhere.
 - Secrets live in your OS credential store. Access control and syncing are managed by your OS (e.g. iCloud Keychain on macOS).
-- Prefer stdin for `set` (use `-`) to avoid secrets in shell history.
-- Note: the macOS `security` CLI accepts the secret via a command-line argument; it may be visible briefly in process listings. If you need stronger guarantees, use `dotkc import` from a file and/or run in a trusted environment.
+- For `set`, omit the value to enter it via a hidden terminal prompt (recommended). You can also use stdin with `-`.
+- Note: the macOS `security` CLI ultimately receives the secret as a command-line argument; it may be visible briefly in process listings. If you need stronger guarantees, prefer `dotkc import` from a file and/or run in a trusted environment.
 - Avoid printing environment variables in logs.
 
 ## Why dotkc (core value)
@@ -73,11 +73,16 @@ Recommendation: keep `category` free of `:` (use `-` or `/`) so prefix matching 
 
 ### Set a secret
 
-Prefer stdin (`-`) to avoid shell history leaks:
+Recommended (hidden prompt; avoids shell history):
+
+```bash
+dotkc set vercel acme-app-dev GITHUB_TOKEN
+```
+
+Alternative (stdin):
 
 ```bash
 (echo -n '...') | dotkc set vercel acme-app-dev GITHUB_TOKEN -
-(echo -n '...') | dotkc set vercel acme-app-dev DEPLOY_TOKEN -
 ```
 
 ### Get / delete
