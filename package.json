@@ -1,7 +1,7 @@
 {
   "name": "dotkc",
   "version": "0.1.0",
-  "description": "Keychain-backed secrets + dotenv-style runner (macOS/iCloud)",
+  "description": "Keychain-backed secrets + dotenv-style runner for OpenClaw/local-agent security (macOS/iCloud)",
   "type": "module",
   "license": "Apache-2.0",
   "bin": {
