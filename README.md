@@ -102,6 +102,13 @@ dotkc list vercel
 dotkc list vercel acme-app-dev
 ```
 
+Notes:
+- Listing uses `security dump-keychain` to enumerate account names (values are not printed).
+- If you run in a high-security environment where command output may be captured, you can disable listing entirely:
+  ```bash
+  export DOTKC_NO_DUMP=1
+  ```
+
 ### Run a command with secrets injected
 
 Wildcard (load *all* secrets under a category):

@@ -60,7 +60,12 @@ function securityDel(service, account) {
 function securityFindAccountsByService(service) {
   // Best-effort enumeration by parsing `security dump-keychain` output.
   // We match blocks that include svce="<service>" and extract acct="...".
-  const out = sh('security', ['dump-keychain', '-d']);
+  if (process.env.DOTKC_NO_DUMP === '1') {
+    throw new Error('Listing is disabled (DOTKC_NO_DUMP=1).');
+  }
+
+  // Avoid `-d` (data) to reduce risk of exposing secret material in command output.
+  const out = sh('security', ['dump-keychain']);
   const lines = out.split(/\r?\n/);
 
   const accounts = [];
@@ -333,14 +338,24 @@ if (cmd === 'del') {
 }
 
 async function listCategories(service) {
-  const accounts = securityFindAccountsByService(service);
+  let accounts;
+  try {
+    accounts = securityFindAccountsByService(service);
+  } catch (e) {
+    die(String(e?.message ?? e), 2);
+  }
   const cats = Array.from(new Set(accounts.map(a => a.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   for (const c of cats) console.log(c);
 }
 
 async function listKeys(service, category) {
   const prefix = `${category}:`;
-  const accounts = securityFindAccountsByService(service);
+  let accounts;
+  try {
+    accounts = securityFindAccountsByService(service);
+  } catch (e) {
+    die(String(e?.message ?? e), 2);
+  }
   const keys = accounts
     .filter(a => a.startsWith(prefix))
     .map(a => a.slice(prefix.length))
