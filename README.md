@@ -100,6 +100,22 @@ Exact selection (pick specific keys):
 dotkc run vercel:acme-app-dev:GITHUB_TOKEN,vercel:acme-app-dev:DEPLOY_TOKEN -- node ./my-app.mjs
 ```
 
+### Import from a dotenv file into Keychain (interactive)
+
+If you already have a `.env` file, you can selectively import entries into Keychain.
+
+```bash
+dotkc import vercel acme-app-dev .env
+```
+
+Controls:
+- `j/k` or `↑/↓` move
+- `space` select/deselect
+- `a` select all
+- `d` deselect all
+- `enter` import
+- `q` / `esc` cancel
+
 ### Run with dotenv files (optional)
 
 If your project already uses `.env` / `.env.local`, you can load them first, then override with Keychain:

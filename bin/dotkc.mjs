@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import readline from 'node:readline';
 
 function die(msg, code = 1) {
   console.error(msg);
@@ -27,6 +28,7 @@ Usage:
   dotkc del <service> <category> <KEY>
 
   dotkc list <service> [category]
+  dotkc import <service> <category> [dotenv_file]
 
   # Compatibility aliases:
   dotkc categories <service>
@@ -36,6 +38,11 @@ Usage:
   #  - exact: <service>:<category>:<KEY>
   #  - wildcard: <service>:<category>
   dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
+
+Import:
+  dotkc import <service> <category> [dotenv_file]
+    - Reads KEY=VALUE entries from a dotenv file (default: ./.env)
+    - Interactive selection (vim keys + space) before writing to Keychain
 
 Run options:
   --dotenv                Load dotenv files if present (.env then .env.local)
@@ -50,6 +57,8 @@ Examples:
   dotkc run vercel:acme-app-dev -- node ./app.mjs
   dotkc run --dotenv vercel:acme-app-dev -- node ./app.mjs
   dotkc run vercel:acme-app-dev:GITHUB_TOKEN,vercel:acme-app-dev:DEPLOY_TOKEN -- node ./app.mjs
+
+  dotkc import vercel acme-app-dev .env
 
 Notes:
 - Prefer '-' (stdin) for values to avoid shell history.
@@ -66,6 +75,95 @@ async function readAllStdin() {
   const chunks = [];
   for await (const c of process.stdin) chunks.push(c);
   return Buffer.concat(chunks).toString('utf8');
+}
+
+function clearScreen() {
+  process.stdout.write('\x1b[2J\x1b[H');
+}
+
+function renderPicker({ title, hint, items, cursor, selected }) {
+  clearScreen();
+  process.stdout.write(`${title}\n\n`);
+  if (hint) process.stdout.write(`${hint}\n\n`);
+
+  const max = Math.min(items.length, (process.stdout.rows ?? 24) - 6);
+  const start = Math.max(0, Math.min(cursor - Math.floor(max / 2), items.length - max));
+  const end = Math.min(items.length, start + max);
+
+  for (let i = start; i < end; i++) {
+    const key = items[i];
+    const isCur = i === cursor;
+    const isSel = selected.has(key);
+    const line = `${isCur ? '>' : ' '} [${isSel ? 'x' : ' '}] ${key}`;
+    process.stdout.write(line + '\n');
+  }
+  if (items.length > max) process.stdout.write(`\n(${start + 1}-${end} of ${items.length})\n`);
+}
+
+async function pickMany({ title, hint, items, initiallySelected = null }) {
+  if (!process.stdin.isTTY) die('Interactive import requires a TTY.', 2);
+
+  let cursor = 0;
+  const selected = new Set(initiallySelected ?? items);
+
+  readline.emitKeypressEvents(process.stdin);
+  process.stdin.setRawMode(true);
+
+  const cleanup = () => {
+    process.stdin.setRawMode(false);
+    process.stdin.removeAllListeners('keypress');
+    clearScreen();
+  };
+
+  return await new Promise((resolve, reject) => {
+    const onKey = (str, key) => {
+      try {
+        const name = key?.name;
+
+        if (key?.ctrl && name === 'c') {
+          cleanup();
+          process.exit(130);
+        }
+
+        // navigation (vim + arrows)
+        if (name === 'down' || str === 'j') cursor = Math.min(items.length - 1, cursor + 1);
+        else if (name === 'up' || str === 'k') cursor = Math.max(0, cursor - 1);
+        else if (name === 'home' || str === 'g') cursor = 0;
+        else if (name === 'end' || str === 'G') cursor = items.length - 1;
+
+        // toggle
+        else if (name === 'space') {
+          const k = items[cursor];
+          if (selected.has(k)) selected.delete(k);
+          else selected.add(k);
+        }
+
+        // select all / none
+        else if (str === 'a') items.forEach(k => selected.add(k));
+        else if (str === 'd') selected.clear();
+
+        // confirm / cancel
+        else if (name === 'return' || name === 'enter') {
+          const out = Array.from(selected);
+          cleanup();
+          resolve(out);
+          return;
+        } else if (name === 'escape' || str === 'q') {
+          cleanup();
+          resolve(null);
+          return;
+        }
+
+        renderPicker({ title, hint, items, cursor, selected });
+      } catch (e) {
+        cleanup();
+        reject(e);
+      }
+    };
+
+    process.stdin.on('keypress', onKey);
+    renderPicker({ title, hint, items, cursor, selected });
+  });
 }
 
 function parseSpec(s) {
@@ -170,6 +268,43 @@ function loadDotenvIntoEnv(env, filePath, override) {
   for (const [k, v] of Object.entries(process.env)) {
     if (typeof v === 'string') env[k] = v;
   }
+}
+
+if (cmd === 'import') {
+  const [service, category, fileArg] = argv.slice(1);
+  if (!service || !category) usage(1);
+
+  const filePath = path.isAbsolute(fileArg ?? '.env') ? (fileArg ?? '.env') : path.join(process.cwd(), fileArg ?? '.env');
+  if (!fs.existsSync(filePath)) die(`Dotenv file not found: ${filePath}`, 2);
+
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const parsed = dotenv.parse(raw);
+  const keys = Object.keys(parsed).sort((a, b) => a.localeCompare(b));
+  if (keys.length === 0) die(`No entries found in ${filePath}`, 2);
+
+  const picked = await pickMany({
+    title: `dotkc import → ${service}:${category}`,
+    hint: `File: ${filePath}\nKeys: j/k or ↑/↓ to move, space to toggle, a=all, d=none, enter=import, q/esc=cancel`,
+    items: keys,
+  });
+
+  if (picked == null) {
+    console.error('Cancelled.');
+    process.exit(1);
+  }
+
+  if (picked.length === 0) die('Nothing selected.');
+
+  let written = 0;
+  for (const k of picked) {
+    const v = parsed[k];
+    if (typeof v !== 'string') continue;
+    await keytar.setPassword(service, `${category}:${k}`, v);
+    written++;
+  }
+
+  console.log(`OK (${written} secrets imported into Keychain)`);
+  process.exit(0);
 }
 
 if (cmd === 'run') {
