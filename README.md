@@ -4,17 +4,30 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 
 `dotkc` stores secrets in your OS credential store (macOS Keychain), which can be synced across Macs via **iCloud Keychain**.
 
+## Security & threat model (read first)
+
+- `dotkc` does **not** upload secrets anywhere.
+- Secrets live in your OS credential store. Access control and syncing are managed by your OS (e.g. iCloud Keychain on macOS).
+- Prefer stdin for `set` (use `-`) to avoid secrets in shell history and process listings.
+- Avoid printing environment variables in logs.
+
 ## Why dotkc (core value)
 
-Most projects either:
-- keep secrets in `.env` files (easy, but they end up on disk, get copied around, and can leak), or
-- use a cloud secret manager (great for servers/CI, but heavy for local dev).
+Most local dev setups either:
+- keep secrets in `.env` files (easy, but they live on disk and get copied around), or
+- use a cloud secret manager (great for prod/CI, but heavy for local-first workflows).
 
 `dotkc` is a *local-first* middle ground:
-- **No `.env` file required** for secrets (store in Keychain instead)
-- **Sync across Macs** via iCloud Keychain
+- **Keep secrets in Keychain** (instead of a plaintext `.env`)
+- **Sync across Macs** via iCloud Keychain (MacBook ↔ Mac mini, etc.)
 - **Dotenv-like ergonomics**: run any command with secrets injected
 - Organize secrets with 3 dimensions: **service (SaaS) + category (project/env) + key (ENV name)**
+
+### Practical use cases
+
+- Personal projects: keep secrets off-disk but still easy to run locally.
+- Multi-machine dev: define secrets once, then reuse on another Mac after iCloud Keychain sync.
+- OpenClaw / local agents: store API tokens in Keychain and inject them only for the command/session that needs them.
 
 ## Install
 
@@ -28,7 +41,7 @@ npm i -g dotkc
 
 A secret is identified by:
 - `service` — SaaS name (e.g. `vercel`, `stripe`, `openai`)
-- `category` — project/env/free-form group (e.g. `nextloom.ai-dev`, `nextloom.ai-prod`)
+- `category` — project/env/free-form group (e.g. `acme-app-dev`, `acme-app-prod`)
 - `KEY` — environment variable name (e.g. `GITHUB_TOKEN`, `DEPLOY_TOKEN`)
 
 Storage convention:
@@ -44,22 +57,25 @@ Recommendation: keep `category` free of `:` (use `-` or `/`) so prefix matching 
 Prefer stdin (`-`) to avoid shell history leaks:
 
 ```bash
-(echo -n '...') | dotkc set vercel nextloom.ai-dev GITHUB_TOKEN -
-(echo -n '...') | dotkc set vercel nextloom.ai-dev DEPLOY_TOKEN -
+(echo -n '...') | dotkc set vercel acme-app-dev GITHUB_TOKEN -
+(echo -n '...') | dotkc set vercel acme-app-dev DEPLOY_TOKEN -
 ```
 
 ### Get / delete
 
 ```bash
-dotkc get vercel nextloom.ai-dev GITHUB_TOKEN
-dotkc del vercel nextloom.ai-dev GITHUB_TOKEN
+dotkc get vercel acme-app-dev GITHUB_TOKEN
+dotkc del vercel acme-app-dev GITHUB_TOKEN
 ```
 
-### List categories / keys (no values)
+### List (categories and keys, no values)
 
 ```bash
-dotkc categories vercel
-dotkc keys vercel nextloom.ai-dev
+# list categories under a SaaS
+dotkc list vercel
+
+# list keys under a category
+dotkc list vercel acme-app-dev
 ```
 
 ### Run a command with secrets injected
@@ -67,21 +83,37 @@ dotkc keys vercel nextloom.ai-dev
 Wildcard (load *all* secrets under a category):
 
 ```bash
-dotkc run vercel:nextloom.ai-dev -- node ./my-app.mjs
+dotkc run vercel:acme-app-dev -- node ./my-app.mjs
 ```
 
 Exact selection (pick specific keys):
 
 ```bash
-dotkc run vercel:nextloom.ai-dev:GITHUB_TOKEN,vercel:nextloom.ai-dev:DEPLOY_TOKEN -- node ./my-app.mjs
+dotkc run vercel:acme-app-dev:GITHUB_TOKEN,vercel:acme-app-dev:DEPLOY_TOKEN -- node ./my-app.mjs
 ```
 
-## Security notes
+### Run with dotenv files (optional)
 
-- `dotkc` does **not** upload secrets anywhere.
-- Secrets live in your OS credential store. Access control and syncing are managed by your OS (e.g. iCloud Keychain on macOS).
-- Avoid printing environment variables in logs.
-- Prefer stdin for `set` to avoid secrets in shell history or process listings.
+If your project already uses `.env` / `.env.local`, you can load them first, then override with Keychain:
+
+```bash
+# loads .env then .env.local (if present)
+dotkc run --dotenv vercel:acme-app-dev -- node ./my-app.mjs
+
+# load a specific file (repeatable)
+dotkc run --dotenv-file .env.staging vercel:acme-app-dev -- node ./my-app.mjs
+
+# allow dotenv to override existing process.env (default is: do NOT override)
+dotkc run --dotenv --dotenv-override vercel:acme-app-dev -- node ./my-app.mjs
+```
+
+#### Recommended env precedence order
+
+1) Existing `process.env` (e.g. CI, shell exports)
+2) Dotenv files (`.env`, `.env.local`, and any `--dotenv-file`)
+3) Keychain secrets injected by `dotkc` (**always override**)
+
+This keeps explicit environment exports in control, but guarantees the Keychain secrets win last.
 
 ## License
 
