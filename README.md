@@ -12,7 +12,7 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 - `dotkc` does **not** upload secrets anywhere.
 - Secrets live in your OS credential store. Access control and syncing are managed by your OS (e.g. iCloud Keychain on macOS).
 - For `set`, omit the value to enter it via a hidden terminal prompt (recommended). You can also use stdin with `-`.
-- Note: the macOS `security` CLI ultimately receives the secret as a command-line argument; it may be visible briefly in process listings. If you need stronger guarantees, prefer `dotkc import` from a file and/or run in a trusted environment.
+- Note: `dotkc` uses native Keychain bindings (via `keytar-forked-forked`) to avoid passing secrets on the `security -w` command line.
 - Avoid printing environment variables in logs.
 
 ## Why dotkc (core value)
@@ -44,7 +44,7 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 npm i -g dotkc
 ```
 
-> Note: On macOS, `dotkc` uses the built-in `security` CLI (no native Node addons).
+> Note: `dotkc` uses native Keychain bindings (via `keytar-forked-forked`). Very new Node versions may require a rebuild or waiting for prebuilt binaries.
 
 ## First run (Keychain authorization)
 
@@ -64,7 +64,7 @@ A secret is identified by:
 - `KEY` — environment variable name (e.g. `GITHUB_TOKEN`, `DEPLOY_TOKEN`)
 
 Storage convention:
-- stored as Keychain entry `(service, "<category>:<KEY>")` via the macOS `security` CLI
+- stored as Keychain entry `(service, "<category>:<KEY>")`
 - injected into environment as `KEY=<value>`
 
 Recommendation: keep `category` free of `:` (use `-` or `/`) so prefix matching is unambiguous.
@@ -103,11 +103,7 @@ dotkc list vercel acme-app-dev
 ```
 
 Notes:
-- Listing uses `security dump-keychain` to enumerate account names (values are not printed).
-- If you run in a high-security environment where command output may be captured, you can disable listing entirely:
-  ```bash
-  export DOTKC_NO_DUMP=1
-  ```
+- Listing uses the Keychain API via `keytar-forked-forked` and does not dump your keychain.
 
 ### Run a command with secrets injected
 

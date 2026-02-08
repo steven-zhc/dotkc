@@ -8,92 +8,38 @@
  *   (service, `${category}:${KEY}`)
  */
 
+import keytar from 'keytar-forked-forked';
 import dotenv from 'dotenv';
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+
+// Keychain backend: keytar-forked-forked (native bindings)
+// Pros:
+// - Secrets do not appear in `security -w <secret>` process args
+// - Clean listing via findCredentials(service)
 
 function die(msg, code = 1) {
   console.error(msg);
   process.exit(code);
 }
 
-function sh(cmd, args, { input } = {}) {
-  try {
-    return execFileSync(cmd, args, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      input,
-    });
-  } catch (e) {
-    const stderr = e?.stderr?.toString?.() ?? '';
-    const stdout = e?.stdout?.toString?.() ?? '';
-    const msg = [
-      `Command failed: ${cmd} ${args.join(' ')}`,
-      stdout && `stdout: ${stdout.trim()}`,
-      stderr && `stderr: ${stderr.trim()}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    const err = new Error(msg);
-    err.cause = e;
-    throw err;
-  }
+async function kcSet(service, account, value) {
+  await keytar.setPassword(service, account, value);
 }
 
-function securitySet(service, account, value) {
-  // NOTE: security CLI takes the password as a command-line arg (-w), which may be visible briefly
-  // via process listings. We accept this tradeoff to avoid native Node addons.
-  sh('security', ['add-generic-password', '-U', '-s', service, '-a', account, '-w', value]);
+async function kcGet(service, account) {
+  return await keytar.getPassword(service, account);
 }
 
-function securityGet(service, account) {
-  // Prints password to stdout
-  return sh('security', ['find-generic-password', '-s', service, '-a', account, '-w']).trimEnd();
+async function kcDel(service, account) {
+  return await keytar.deletePassword(service, account);
 }
 
-function securityDel(service, account) {
-  sh('security', ['delete-generic-password', '-s', service, '-a', account]);
-}
-
-function securityFindAccountsByService(service) {
-  // Best-effort enumeration by parsing `security dump-keychain` output.
-  // We match blocks that include svce="<service>" and extract acct="...".
-  if (process.env.DOTKC_NO_DUMP === '1') {
-    throw new Error('Listing is disabled (DOTKC_NO_DUMP=1).');
-  }
-
-  // Avoid `-d` (data) to reduce risk of exposing secret material in command output.
-  const out = sh('security', ['dump-keychain']);
-  const lines = out.split(/\r?\n/);
-
-  const accounts = [];
-  let inMatch = false;
-  let acct = null;
-
-  for (const line of lines) {
-    if (line.startsWith('keychain:')) {
-      if (inMatch && acct) accounts.push(acct);
-      inMatch = false;
-      acct = null;
-      continue;
-    }
-
-    if (line.includes('"svce"') && line.includes(`="${service}"`)) {
-      inMatch = true;
-      continue;
-    }
-
-    if (inMatch && line.includes('"acct"')) {
-      const m = line.match(/\"acct\"<[^>]*>=\"([^\"]*)\"/);
-      if (m) acct = m[1];
-    }
-  }
-
-  if (inMatch && acct) accounts.push(acct);
-
-  return Array.from(new Set(accounts));
+async function kcFindAccounts(service) {
+  const creds = await keytar.findCredentials(service);
+  return creds.map(c => c.account);
 }
 
 function usage(code = 0) {
@@ -306,7 +252,7 @@ if (cmd === 'set') {
   }
 
   if (!secret) die('Empty value; nothing stored.', 2);
-  securitySet(service, `${category}:${key}`, secret);
+  await kcSet(service, `${category}:${key}`, secret);
   console.log('OK');
   process.exit(0);
 }
@@ -314,12 +260,8 @@ if (cmd === 'set') {
 if (cmd === 'get') {
   const [service, category, key] = argv.slice(1);
   if (!service || !category || !key) usage(1);
-  let v;
-  try {
-    v = securityGet(service, `${category}:${key}`);
-  } catch {
-    die('NOT_FOUND', 3);
-  }
+  const v = await kcGet(service, `${category}:${key}`);
+  if (v == null) die('NOT_FOUND', 3);
   process.stdout.write(v);
   process.exit(0);
 }
@@ -327,35 +269,20 @@ if (cmd === 'get') {
 if (cmd === 'del') {
   const [service, category, key] = argv.slice(1);
   if (!service || !category || !key) usage(1);
-  try {
-    securityDel(service, `${category}:${key}`);
-    console.log('OK');
-    process.exit(0);
-  } catch {
-    console.log('NOT_FOUND');
-    process.exit(3);
-  }
+  const ok = await kcDel(service, `${category}:${key}`);
+  console.log(ok ? 'OK' : 'NOT_FOUND');
+  process.exit(ok ? 0 : 3);
 }
 
 async function listCategories(service) {
-  let accounts;
-  try {
-    accounts = securityFindAccountsByService(service);
-  } catch (e) {
-    die(String(e?.message ?? e), 2);
-  }
+  const accounts = await kcFindAccounts(service);
   const cats = Array.from(new Set(accounts.map(a => a.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   for (const c of cats) console.log(c);
 }
 
 async function listKeys(service, category) {
   const prefix = `${category}:`;
-  let accounts;
-  try {
-    accounts = securityFindAccountsByService(service);
-  } catch (e) {
-    die(String(e?.message ?? e), 2);
-  }
+  const accounts = await kcFindAccounts(service);
   const keys = accounts
     .filter(a => a.startsWith(prefix))
     .map(a => a.slice(prefix.length))
@@ -412,10 +339,10 @@ if (cmd === 'init') {
   console.log('If macOS prompts for Keychain access, click “Always Allow” (recommended).');
 
   try {
-    securitySet(service, account, value);
-    const got = securityGet(service, account);
+    await kcSet(service, account, value);
+    const got = await kcGet(service, account);
     if (got !== value) throw new Error('Keychain readback mismatch');
-    securityDel(service, account);
+    await kcDel(service, account);
   } catch (e) {
     console.error('\nInit failed. Common causes:');
     console.error('- You clicked “Deny” on the Keychain access prompt');
@@ -463,7 +390,7 @@ if (cmd === 'import') {
   for (const k of picked) {
     const v = parsed[k];
     if (typeof v !== 'string') continue;
-    securitySet(service, `${category}:${k}`, v);
+    await kcSet(service, `${category}:${k}`, v);
     written++;
   }
 
@@ -532,30 +459,22 @@ if (cmd === 'run') {
 
   for (const sp of specs) {
     if (sp.kind === 'exact') {
-      let v;
-      try {
-        v = securityGet(sp.service, `${sp.category}:${sp.key}`);
-      } catch {
-        die(`Missing secret: ${sp.service}:${sp.category}:${sp.key}`, 3);
-      }
+      const v = await kcGet(sp.service, `${sp.category}:${sp.key}`);
+      if (v == null) die(`Missing secret: ${sp.service}:${sp.category}:${sp.key}`, 3);
       env[sp.key] = v;
       continue;
     }
 
     const prefix = `${sp.category}:`;
-    const accounts = securityFindAccountsByService(sp.service);
+    const accounts = await kcFindAccounts(sp.service);
     const matches = accounts.filter(a => a.startsWith(prefix));
     if (matches.length === 0) die(`No secrets matched: ${sp.service}:${sp.category}`, 3);
 
     for (const acct of matches) {
       const k = acct.slice(prefix.length);
       if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) continue;
-      let v;
-      try {
-        v = securityGet(sp.service, acct);
-      } catch {
-        continue;
-      }
+      const v = await kcGet(sp.service, acct);
+      if (v == null) continue;
       env[k] = v;
     }
   }
