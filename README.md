@@ -11,7 +11,8 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 
 - `dotkc` does **not** upload secrets anywhere.
 - Secrets live in your OS credential store. Access control and syncing are managed by your OS (e.g. iCloud Keychain on macOS).
-- Prefer stdin for `set` (use `-`) to avoid secrets in shell history and process listings.
+- Prefer stdin for `set` (use `-`) to avoid secrets in shell history.
+- Note: the macOS `security` CLI accepts the secret via a command-line argument; it may be visible briefly in process listings. If you need stronger guarantees, use `dotkc import` from a file and/or run in a trusted environment.
 - Avoid printing environment variables in logs.
 
 ## Why dotkc (core value)
@@ -43,7 +44,7 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 npm i -g dotkc
 ```
 
-> Note: `keytar` is a native module. You need build tooling for your platform.
+> Note: On macOS, `dotkc` uses the built-in `security` CLI (no native Node addons).
 
 ## First run (Keychain authorization)
 
@@ -63,7 +64,7 @@ A secret is identified by:
 - `KEY` — environment variable name (e.g. `GITHUB_TOKEN`, `DEPLOY_TOKEN`)
 
 Storage convention:
-- stored as Keychain entry `(service, "<category>:<KEY>")`
+- stored as Keychain entry `(service, "<category>:<KEY>")` via the macOS `security` CLI
 - injected into environment as `KEY=<value>`
 
 Recommendation: keep `category` free of `:` (use `-` or `/`) so prefix matching is unambiguous.

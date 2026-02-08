@@ -17,8 +17,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "dotenv": "^16.6.1",
-    "keytar": "^7.9.0"
+    "dotenv": "^16.6.1"
   },
   "repository": {
     "type": "git",
