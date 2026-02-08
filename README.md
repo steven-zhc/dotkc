@@ -13,21 +13,26 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 
 ## Why dotkc (core value)
 
-Most local dev setups either:
-- keep secrets in `.env` files (easy, but they live on disk and get copied around), or
-- use a cloud secret manager (great for prod/CI, but heavy for local-first workflows).
+`dotkc` was built for **OpenClaw-style local agents** and developer workflows where you want to safely use API keys/tokens **without pasting secrets into chats** or committing them to git.
 
-`dotkc` is a *local-first* middle ground:
-- **Keep secrets in Keychain** (instead of a plaintext `.env`)
-- **Sync across Macs** via iCloud Keychain (MacBook ↔ Mac mini, etc.)
-- **Dotenv-like ergonomics**: run any command with secrets injected
-- Organize secrets with 3 dimensions: **service (SaaS) + category (project/env) + key (ENV name)**
+### The problem
+
+- `.env` files are convenient, but secrets end up **on disk**, can be copied around, and sometimes get committed by accident.
+- Sending tokens to an assistant (or any remote system) can create unwanted **logs/history** and accidental disclosure.
+
+### The approach
+
+`dotkc` keeps secrets in **macOS Keychain** and injects them into a command environment *only at runtime*:
+- **Never commit secrets to AI**: you store them locally and run commands that fetch secrets from Keychain.
+- **Sync across Macs** via iCloud Keychain (MacBook ↔ Mac mini, etc.).
+- **Dotenv-like ergonomics**: `dotkc run ... -- <cmd>`.
+- Organize secrets with 3 dimensions: **service (SaaS) + category (project/env) + key (ENV name)**.
 
 ### Practical use cases
 
-- Personal projects: keep secrets off-disk but still easy to run locally.
+- OpenClaw: keep provider tokens in Keychain and inject only for the specific agent/gateway command that needs them.
 - Multi-machine dev: define secrets once, then reuse on another Mac after iCloud Keychain sync.
-- OpenClaw / local agents: store API tokens in Keychain and inject them only for the command/session that needs them.
+- Personal projects: keep secrets off-disk but still easy to run locally.
 
 ## Install
 
