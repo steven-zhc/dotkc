@@ -45,6 +45,16 @@ npm i -g dotkc
 
 > Note: `keytar` is a native module. You need build tooling for your platform.
 
+## First run (Keychain authorization)
+
+On first use, macOS may show a Keychain access prompt. Run this once to trigger the prompt and verify access:
+
+```bash
+dotkc init
+```
+
+If you see a prompt, choose **Always Allow** (recommended) so `dotkc` can read/write the Keychain items it creates.
+
 ## Data model
 
 A secret is identified by:
@@ -138,6 +148,22 @@ dotkc run --dotenv --dotenv-override vercel:acme-app-dev -- node ./my-app.mjs
 3) Keychain secrets injected by `dotkc` (**always override**)
 
 This keeps explicit environment exports in control, but guarantees the Keychain secrets win last.
+
+## Q&A / troubleshooting
+
+### Q: I don’t see any prompt, but dotkc can’t access Keychain.
+
+- Run `dotkc init` again.
+- If you previously clicked **Deny**, macOS may keep that decision.
+  Open **Keychain Access** → search for `dotkc` → review access control or delete the denied entry.
+
+### Q: Do I need to type my password?
+
+Sometimes. macOS may require Touch ID or your login password depending on your security settings and whether the Keychain is locked.
+
+### Q: I’m on a headless Mac mini. Where is the prompt?
+
+The Keychain prompt appears on the active GUI session. Log in locally once (GUI) and run `dotkc init` to approve.
 
 ## License
 

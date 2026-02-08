@@ -29,6 +29,7 @@ Usage:
 
   dotkc list <service> [category]
   dotkc import <service> <category> [dotenv_file]
+  dotkc init
 
   # Compatibility aliases:
   dotkc categories <service>
@@ -38,6 +39,10 @@ Usage:
   #  - exact: <service>:<category>:<KEY>
   #  - wildcard: <service>:<category>
   dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
+
+Init:
+  dotkc init
+    - Runs a small Keychain write/read/delete to trigger macOS Keychain access prompts
 
 Import:
   dotkc import <service> <category> [dotenv_file]
@@ -50,6 +55,8 @@ Run options:
   --dotenv-override       Allow dotenv to override existing process.env
 
 Examples:
+  dotkc init
+
   (echo -n '...') | dotkc set vercel acme-app-dev GITHUB_TOKEN -
   dotkc list vercel
   dotkc list vercel acme-app-dev
@@ -268,6 +275,39 @@ function loadDotenvIntoEnv(env, filePath, override) {
   for (const [k, v] of Object.entries(process.env)) {
     if (typeof v === 'string') env[k] = v;
   }
+}
+
+if (cmd === 'init') {
+  const service = 'dotkc';
+  const category = 'init';
+  const key = 'DOTKC_INIT_TEST';
+  const account = `${category}:${key}`;
+  const value = `ok-${Date.now()}`;
+
+  console.log('dotkc init: triggering Keychain access...');
+  console.log('If macOS prompts for Keychain access, click “Always Allow” (recommended).');
+
+  try {
+    await keytar.setPassword(service, account, value);
+    const got = await keytar.getPassword(service, account);
+    if (got !== value) throw new Error('Keychain readback mismatch');
+    await keytar.deletePassword(service, account);
+  } catch (e) {
+    console.error('\nInit failed. Common causes:');
+    console.error('- You clicked “Deny” on the Keychain access prompt');
+    console.error('- Keychain is locked / requires login password');
+    console.error('- Running headless: the prompt is on the logged-in GUI session');
+    console.error('\nWhat to do:');
+    console.error('1) Re-run: dotkc init');
+    console.error('2) Open “Keychain Access” → search for dotkc → review access control / delete the denied entry');
+    console.error('3) If using a Mac mini, run once while logged in locally (GUI)');
+    console.error('\nError details:');
+    console.error(String(e?.message ?? e));
+    process.exit(2);
+  }
+
+  console.log('OK (Keychain access verified)');
+  process.exit(0);
 }
 
 if (cmd === 'import') {
