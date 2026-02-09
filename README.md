@@ -158,6 +158,26 @@ dotkc run --dotenv --dotenv-override vercel:acme-app-dev -- node ./my-app.mjs
 
 This keeps explicit environment exports in control, but guarantees the Keychain secrets win last.
 
+## Node compatibility
+
+`dotkc` uses native Keychain bindings via `keytar-forked-forked`.
+
+Recommended runtimes:
+- **Node 22 LTS** (most stable)
+- **Node 25** (latest)
+
+Other Node versions may work but could require rebuilding native dependencies from source.
+
+### Volta tip
+
+If you use Volta, set an LTS default for global CLIs:
+
+```bash
+volta install node@22
+```
+
+(Then reinstall `dotkc` so native deps compile/download for that Node.)
+
 ## Q&A / troubleshooting
 
 ### Q: I don’t see any prompt, but dotkc can’t access Keychain.
