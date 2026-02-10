@@ -140,37 +140,30 @@ Wildcard (load *all* secrets under a category):
 dotkc run vercel:acme-app-dev -- node ./my-app.mjs
 ```
 
-### Dry run (verify your secrets)
+### Inspect mode (verify your secrets)
 
 After importing, you may want to quickly verify what `dotkc run` would resolve.
 
-Print key names only:
+If you omit `-- <cmd>`, `dotkc run` enters **inspect mode** and prints **redacted** values by default:
 
 ```bash
-dotkc run --dry-run vercel:acme-app-dev
-# or (shortcut): omit `-- <cmd>`
 dotkc run vercel:acme-app-dev
+# KEY=abcd…wxyz (len=51)
 ```
 
-Print key/value pairs (unsafe):
+Unsafe: print full key/value pairs:
 
 ```bash
-dotkc run --values vercel:acme-app-dev
+dotkc run --unsafe-values vercel:acme-app-dev
 ```
 
-Print *redacted* key/value output (safer):
+JSON output (still redacted by default):
 
 ```bash
-dotkc run --values --redact vercel:acme-app-dev
+dotkc run --json vercel:acme-app-dev
 ```
 
-JSON output:
-
-```bash
-dotkc run --dry-run --json vercel:acme-app-dev
-```
-
-`--values` prints secrets to stdout. It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.
+`--unsafe-values` prints full secrets to stdout. It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.
 Only use it on a trusted personal machine.
 
 Exact selection (pick specific keys):

@@ -77,10 +77,8 @@ Import:
     - Interactive selection (vim keys + space) before writing to Keychain
 
 Run options:
-  --dry-run               Resolve secrets but do not execute a command (prints key names)
-  --values, --print-values  Resolve secrets and print KEY=VALUE (unsafe)
-  --redact                When used with --values, print redacted values only
-  --json                  JSON output for dry-run/values
+  --json                  Inspect mode: output JSON instead of KEY=VALUE lines
+  --unsafe-values         Inspect mode: print full secret values (unsafe)
 
   --dotenv                Load dotenv files if present (.env then .env.local)
   --no-default-dotenv     When using --dotenv, do not auto-load .env and .env.local (only --dotenv-file)
@@ -445,9 +443,8 @@ if (cmd === 'run') {
   let dotenvOverride = false;
   let noDefaultDotenv = false;
 
-  let dryRun = sep === -1;
-  let printValues = false;
-  let redactValues = false;
+  const inspect = sep === -1;
+  let unsafeValues = false;
   let jsonOut = false;
 
   const specParts = [];
@@ -473,23 +470,12 @@ if (cmd === 'run') {
       enableDotenv = true;
       continue;
     }
-    if (a === '--dry-run') {
-      dryRun = true;
-      continue;
-    }
-    if (a === '--values' || a === '--print-values') {
-      dryRun = true;
-      printValues = true;
-      continue;
-    }
-    if (a === '--redact') {
-      redactValues = true;
-      dryRun = true;
+    if (a === '--unsafe-values') {
+      unsafeValues = true;
       continue;
     }
     if (a === '--json') {
       jsonOut = true;
-      dryRun = true;
       continue;
     }
     // everything else is spec text
@@ -555,34 +541,36 @@ if (cmd === 'run') {
     return `${head}…${tail} (len=${len})`;
   }
 
-  if (dryRun) {
+  if (inspect) {
     const keys = Object.keys(resolved).sort((a, b) => a.localeCompare(b));
 
+    const warnUnsafe = () => {
+      console.error('WARNING: Printing FULL secret values to stdout.');
+      console.error('They may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.');
+      console.error('Proceed only on a trusted personal machine.');
+      console.error('---');
+    };
+
     if (jsonOut) {
-      if (printValues || redactValues) {
-        const obj = {};
-        for (const k of keys) obj[k] = redactValues ? redact(resolved[k]) : resolved[k];
-        process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
-      } else {
-        process.stdout.write(JSON.stringify({ keys }, null, 2) + '\n');
-      }
+      const obj = {};
+      for (const k of keys) obj[k] = unsafeValues ? resolved[k] : redact(resolved[k]);
+      if (unsafeValues) warnUnsafe();
+      process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
       process.exit(0);
     }
 
-    if (printValues || redactValues) {
-      console.error('WARNING: Printing secret output to stdout.');
-      console.error('It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.');
-      console.error('Proceed only on a trusted personal machine.');
-      console.error('---');
-      for (const k of keys) {
-        const v = redactValues ? redact(resolved[k]) : resolved[k];
-        process.stdout.write(`${k}=${v}\n`);
-      }
-    } else {
-      for (const k of keys) process.stdout.write(`${k}\n`);
+    // Default inspect output: KEY=<redacted>
+    if (unsafeValues) warnUnsafe();
+    for (const k of keys) {
+      const v = unsafeValues ? resolved[k] : redact(resolved[k]);
+      process.stdout.write(`${k}=${v}\n`);
     }
 
     process.exit(0);
+  }
+
+  if (jsonOut || unsafeValues) {
+    die('Inspect flags (--json/--unsafe-values) require omitting "-- <cmd>".', 2);
   }
 
   if (!execCmd) usage(1);
