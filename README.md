@@ -113,6 +113,12 @@ dotkc get vercel acme-app-dev GITHUB_TOKEN
 dotkc del vercel acme-app-dev GITHUB_TOKEN
 ```
 
+### Delete a whole category (bulk)
+
+```bash
+dotkc delcat vercel acme-app-dev --yes
+```
+
 ### List (categories and keys, no values)
 
 ```bash

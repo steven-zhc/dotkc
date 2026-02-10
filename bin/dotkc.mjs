@@ -48,6 +48,7 @@ Usage:
   dotkc set <service> <category> <KEY> [value|-]
   dotkc get <service> <category> <KEY>
   dotkc del <service> <category> <KEY>
+  dotkc delcat <service> <category> [--yes]
 
   dotkc list <service> [category]
   dotkc import <service> <category> [dotenv_file]
@@ -82,6 +83,7 @@ Examples:
   (echo -n '...') | dotkc set vercel acme-app-dev GITHUB_TOKEN -
   dotkc list vercel
   dotkc list vercel acme-app-dev
+  dotkc delcat vercel acme-app-dev --yes
 
   dotkc run vercel:acme-app-dev -- node ./app.mjs
   dotkc run --dotenv vercel:acme-app-dev -- node ./app.mjs
@@ -272,6 +274,31 @@ if (cmd === 'del') {
   const ok = await kcDel(service, `${category}:${key}`);
   console.log(ok ? 'OK' : 'NOT_FOUND');
   process.exit(ok ? 0 : 3);
+}
+
+if (cmd === 'delcat') {
+  const [service, category, maybeYes] = argv.slice(1);
+  const yes = maybeYes === '--yes' || maybeYes === '-y';
+  if (!service || !category) usage(1);
+
+  if (!yes) {
+    console.error(`Refusing to delete category without confirmation.`);
+    console.error(`Re-run with: dotkc delcat ${service} ${category} --yes`);
+    process.exit(2);
+  }
+
+  const prefix = `${category}:`;
+  const accounts = await kcFindAccounts(service);
+  const targets = accounts.filter(a => a.startsWith(prefix));
+
+  let deleted = 0;
+  for (const acct of targets) {
+    const ok = await kcDel(service, acct);
+    if (ok) deleted++;
+  }
+
+  console.log(`OK (deleted ${deleted} secrets)`);
+  process.exit(0);
 }
 
 async function listCategories(service) {
