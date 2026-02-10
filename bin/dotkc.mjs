@@ -109,20 +109,20 @@ async function detectKeychainPath(which) {
   die(`Unknown keychain selector: ${which}`, 2);
 }
 
-function securityArgsBase(keychainPath) {
-  return keychainPath ? ['-k', keychainPath] : [];
+function securityKeychainArg(keychainPath) {
+  // `security find/add/delete-generic-password` accept keychains as trailing positional args.
+  return keychainPath ? [keychainPath] : [];
 }
 
 async function kcSet(service, account, value, keychainPath) {
   // NOTE: `security add-generic-password` takes the secret value as a flag argument (-w).
   // This can be visible to local process inspection tools. Use at your own risk.
-  // We keep it simple for now for macOS-only testing.
-  await execFileP('security', [...securityArgsBase(keychainPath), 'add-generic-password', '-U', '-s', service, '-a', account, '-w', value]);
+  await execFileP('security', ['add-generic-password', '-U', '-s', service, '-a', account, '-w', value, ...securityKeychainArg(keychainPath)]);
 }
 
 async function kcGet(service, account, keychainPath) {
   try {
-    const { stdout } = await execFileP('security', [...securityArgsBase(keychainPath), 'find-generic-password', '-s', service, '-a', account, '-w']);
+    const { stdout } = await execFileP('security', ['find-generic-password', '-s', service, '-a', account, '-w', ...securityKeychainArg(keychainPath)]);
     return stdout.replace(/\r?\n$/, '');
   } catch (e) {
     const msg = String(e?.stderr || e?.message || e);
@@ -133,7 +133,7 @@ async function kcGet(service, account, keychainPath) {
 
 async function kcDel(service, account, keychainPath) {
   try {
-    await execFileP('security', [...securityArgsBase(keychainPath), 'delete-generic-password', '-s', service, '-a', account]);
+    await execFileP('security', ['delete-generic-password', '-s', service, '-a', account, ...securityKeychainArg(keychainPath)]);
     return true;
   } catch (e) {
     const msg = String(e?.stderr || e?.message || e);
