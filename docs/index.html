@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>dotkc — Keychain secrets for OpenClaw + local dev</title>
+    <meta
+      name="description"
+      content="dotkc is a tiny CLI that stores secrets in OS Keychain and injects them into commands—designed for safe local-agent/OpenClaw workflows."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar__inner">
+        <a class="brand" href="#top">
+          <span class="brand__mark">dotkc</span>
+          <span class="brand__tag">Keychain secrets for OpenClaw</span>
+        </a>
+        <nav class="nav">
+          <a href="#why">Why</a>
+          <a href="#how">How</a>
+          <a href="#quickstart">Quickstart</a>
+          <a href="#faq">FAQ</a>
+          <a href="#notes">Notes</a>
+          <a class="nav__cta" href="https://github.com/steven-zhc/dotkc">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="container hero__grid">
+          <div>
+            <p class="eyebrow">OpenClaw-first secrets workflow</p>
+            <h1>Secrets you can <span class="accent">run</span>, not paste.</h1>
+            <p class="lead">
+              <strong>dotkc</strong> stores secrets in your OS Keychain (macOS Keychain / iCloud Keychain) and injects them into
+              commands when you need them. It’s built for personal OpenClaw/local-agent setups where you want secure, repeatable
+              env injection without sprinkling secrets across <code>.env</code> files, shell history, or CI logs.
+            </p>
+
+            <div class="hero__buttons">
+              <a class="btn btn--primary" href="#quickstart">Get started</a>
+              <a class="btn" href="https://www.npmjs.com/package/dotkc">npm</a>
+              <a class="btn" href="https://github.com/steven-zhc/dotkc">source</a>
+            </div>
+
+            <div class="hero__code">
+              <pre><code># store secrets in Keychain (interactive hidden prompt)
+dotkc set vercel acme-app-dev CLERK_SECRET_KEY
+
+# inspect (redacted by default)
+dotkc run vercel:acme-app-dev
+
+# run your app with env injected
+dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
+              <p class="micro">
+                Inspect mode prints redacted values by default. Use <code>--unsafe-values</code> only on a trusted machine.
+              </p>
+            </div>
+          </div>
+
+          <div class="card diagram" aria-label="OpenClaw secrets flow diagram">
+            <div class="card__title">A simple (and safe) personal workflow</div>
+            <div class="diagram__svg">
+              <!-- Cute SVG diagram: MacBook -> iCloud Keychain -> Mac mini (OpenClaw) -->
+              <svg viewBox="0 0 680 420" role="img" aria-label="MacBook stores secrets in Keychain, iCloud syncs to Mac mini running OpenClaw">
+                <defs>
+                  <linearGradient id="g" x1="0" x2="1">
+                    <stop offset="0" stop-color="var(--accent)" stop-opacity="0.9" />
+                    <stop offset="1" stop-color="var(--accent2)" stop-opacity="0.9" />
+                  </linearGradient>
+                  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="rgba(0,0,0,.25)" />
+                  </filter>
+                  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                    <path d="M0,0 L9,3 L0,6 Z" fill="var(--muted)" />
+                  </marker>
+                </defs>
+
+                <!-- left: laptop -->
+                <g filter="url(#shadow)">
+                  <rect x="40" y="140" width="220" height="160" rx="18" fill="var(--panel)" stroke="var(--border)" />
+                  <rect x="65" y="165" width="170" height="95" rx="10" fill="rgba(127,127,127,.12)" stroke="var(--border)" />
+                  <rect x="95" y="280" width="110" height="14" rx="7" fill="var(--border)" />
+                </g>
+                <text x="150" y="120" text-anchor="middle" font-size="16" fill="var(--text)">Developer MacBook</text>
+                <text x="150" y="340" text-anchor="middle" font-size="13" fill="var(--muted)">dotkc writes to Keychain</text>
+
+                <!-- keychain lock icon -->
+                <g transform="translate(125 185)">
+                  <rect x="0" y="18" width="50" height="40" rx="10" fill="url(#g)" />
+                  <path d="M12 18v-8c0-8 6-14 13-14s13 6 13 14v8" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" />
+                  <circle cx="25" cy="38" r="6" fill="rgba(255,255,255,.85)" />
+                  <rect x="23" y="40" width="4" height="12" rx="2" fill="rgba(255,255,255,.85)" />
+                </g>
+
+                <!-- center: iCloud -->
+                <g filter="url(#shadow)">
+                  <path
+                    d="M360 150c-18 0-33 12-38 28-18 2-32 17-32 35 0 20 16 36 36 36h96c20 0 36-16 36-36 0-19-14-34-32-35-5-16-20-28-38-28-10 0-19 3-26 8-7-5-16-8-26-8z"
+                    fill="var(--panel)"
+                    stroke="var(--border)"
+                  />
+                  <path
+                    d="M360 150c-18 0-33 12-38 28-18 2-32 17-32 35 0 20 16 36 36 36h96c20 0 36-16 36-36 0-19-14-34-32-35-5-16-20-28-38-28-10 0-19 3-26 8-7-5-16-8-26-8z"
+                    fill="rgba(127,127,127,.08)"
+                  />
+                </g>
+                <text x="360" y="130" text-anchor="middle" font-size="16" fill="var(--text)">iCloud Keychain</text>
+                <text x="360" y="255" text-anchor="middle" font-size="13" fill="var(--muted)">sync (encrypted)</text>
+
+                <!-- right: mac mini -->
+                <g filter="url(#shadow)">
+                  <rect x="500" y="165" width="150" height="120" rx="22" fill="var(--panel)" stroke="var(--border)" />
+                  <circle cx="545" cy="260" r="6" fill="rgba(127,127,127,.35)" />
+                </g>
+                <text x="575" y="140" text-anchor="middle" font-size="16" fill="var(--text)">Mac mini</text>
+                <text x="575" y="315" text-anchor="middle" font-size="13" fill="var(--muted)">runs OpenClaw</text>
+
+                <!-- OpenClaw badge -->
+                <g transform="translate(520 185)">
+                  <rect x="0" y="0" width="110" height="30" rx="15" fill="rgba(127,127,127,.12)" stroke="var(--border)" />
+                  <text x="55" y="20" text-anchor="middle" font-size="13" fill="var(--text)">OpenClaw</text>
+                </g>
+
+                <!-- arrows -->
+                <path d="M265 215 C305 215, 305 215, 320 215" stroke="var(--muted)" stroke-width="3" fill="none" marker-end="url(#arrow)" />
+                <path d="M450 215 C485 215, 485 215, 495 215" stroke="var(--muted)" stroke-width="3" fill="none" marker-end="url(#arrow)" />
+
+                <text x="292" y="200" font-size="12" fill="var(--muted)">import / set</text>
+                <text x="472" y="200" font-size="12" fill="var(--muted)">dotkc run</text>
+
+                <!-- footer note -->
+                <text x="340" y="392" text-anchor="middle" font-size="12" fill="var(--muted)">
+                  Goal: keep secrets out of repos, files, and chat—while still being easy to use.
+                </text>
+              </svg>
+            </div>
+            <div class="diagram__legend">
+              <div><span class="pill">Keychain</span> Durable secret storage</div>
+              <div><span class="pill">Sync</span> iCloud sync to your OpenClaw host</div>
+              <div><span class="pill">Run</span> Inject env into tools safely</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="why" class="section">
+        <div class="container">
+          <h2>Why dotkc?</h2>
+          <div class="grid3">
+            <div class="card">
+              <h3>The pain</h3>
+              <ul>
+                <li><code>.env</code> files drift and leak (repos, backups, screenshots).</li>
+                <li>Copy/paste secrets into terminals ends up in history.</li>
+                <li>Agents (like OpenClaw) need secrets frequently, but you don’t want them in chat.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>The idea</h3>
+              <ul>
+                <li>Store secrets once in Keychain.</li>
+                <li>Reference them by a stable name.</li>
+                <li>Inject them into commands at runtime.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Designed for OpenClaw</h3>
+              <ul>
+                <li>Keychain is OS-native and works well with personal machines.</li>
+                <li>iCloud Keychain can sync to the Mac mini hosting OpenClaw.</li>
+                <li>Inspect mode helps you verify imported secrets quickly.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="section">
+        <div class="container">
+          <h2>How it works</h2>
+          <p class="lead">
+            dotkc stores secrets using a simple 3‑dimension naming model:
+            <span class="mono">service + category + KEY</span>.
+          </p>
+
+          <div class="card">
+            <div class="two">
+              <div>
+                <h3>Storage model</h3>
+                <p>
+                  Secrets are stored in the OS credential store under:
+                  <span class="mono">(service, category:KEY)</span>
+                </p>
+                <ul>
+                  <li><strong>service</strong>: the SaaS or system (e.g. <code>vercel</code>, <code>github</code>)</li>
+                  <li><strong>category</strong>: project/environment (e.g. <code>acme-app-dev</code>)</li>
+                  <li><strong>KEY</strong>: env var name (e.g. <code>CLERK_SECRET_KEY</code>)</li>
+                </ul>
+                <p class="micro">Tip: avoid <code>:</code> in category names to keep parsing unambiguous.</p>
+              </div>
+              <div>
+                <h3>Two modes: run vs inspect</h3>
+                <ul>
+                  <li><strong>Run</strong>: <code>dotkc run &lt;spec&gt; -- &lt;cmd&gt;</code> injects env into the child process.</li>
+                  <li><strong>Inspect</strong>: <code>dotkc run &lt;spec&gt;</code> prints redacted values so you can sanity check quickly.</li>
+                </ul>
+                <p class="micro">
+                  Want full values? Use <code>--unsafe-values</code> (and accept the logging risk).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout">
+            <strong>OpenClaw pattern:</strong> manage secrets on your laptop → sync via iCloud Keychain → OpenClaw host uses
+            <code>dotkc run</code> to inject secrets into tools (Next.js, REST services, CLIs, etc.).
+          </div>
+        </div>
+      </section>
+
+      <section id="quickstart" class="section">
+        <div class="container">
+          <h2>Quickstart</h2>
+
+          <div class="grid2">
+            <div class="card">
+              <h3>Install</h3>
+              <pre><code>npm i -g dotkc
+# or
+pnpm add -g dotkc</code></pre>
+            </div>
+            <div class="card">
+              <h3>Initialize Keychain permission</h3>
+              <pre><code>dotkc init</code></pre>
+              <p class="micro">Run once to trigger macOS Keychain prompts.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Import from .env (interactive selection)</h3>
+            <pre><code>cd /path/to/your/project
+
+dotkc import vercel acme-app-dev .env</code></pre>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <h3>Inspect (redacted)</h3>
+              <pre><code>dotkc run vercel:acme-app-dev
+# or JSON
+# dotkc run --json vercel:acme-app-dev</code></pre>
+            </div>
+            <div class="card">
+              <h3>Run your app</h3>
+              <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev
+# Next.js
+# dotkc run vercel:acme-app-dev -- pnpm build</code></pre>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Wildcard vs exact specs</h3>
+            <pre><code># wildcard (all KEYs under category)
+dotkc run vercel:acme-app-dev -- node ./app.mjs
+
+# exact (single key)
+dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="keychain">
+        <div class="container">
+          <h2>Why Keychain vs <code>.env</code>?</h2>
+          <div class="card">
+            <ul>
+              <li><strong>OS‑native encryption + access control</strong> (you can review/deny access per app).</li>
+              <li><strong>Less accidental leakage</strong> (repos, zip files, backups, screenshots, shell history).</li>
+              <li><strong>Sync</strong> (iCloud Keychain) works well for personal laptop ↔ Mac mini setups.</li>
+              <li><strong>Better agent hygiene</strong>: OpenClaw can use secrets without you pasting them into chat.</li>
+            </ul>
+            <p class="micro">
+              dotkc is optimized for personal workflows. For large teams and production secret management, consider dedicated
+              platforms (Vault, AWS/GCP secrets, 1Password CLI, etc.).
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" class="section">
+        <div class="container">
+          <h2>FAQ</h2>
+          <div class="faq">
+            <details class="card" open>
+              <summary>Is inspect mode safe?</summary>
+              <p>
+                It’s safer than printing raw values: dotkc prints redacted values + length by default. Still, be mindful of terminal
+                logs, screen recording, and shared machines.
+              </p>
+            </details>
+            <details class="card">
+              <summary>How do I print the full values?</summary>
+              <p>
+                Use <code>dotkc run --unsafe-values &lt;spec&gt;</code>. dotkc will print a warning to stderr.
+              </p>
+            </details>
+            <details class="card">
+              <summary>Does dotkc support Windows/Linux?</summary>
+              <p>
+                It uses a Keychain backend via keytar bindings. Behavior depends on OS support. The main target is macOS + personal
+                machines (especially iCloud Keychain sync).
+              </p>
+            </details>
+            <details class="card">
+              <summary>What does dotkc store exactly?</summary>
+              <p>
+                Secrets are stored as Keychain entries keyed by <code>service</code> and <code>category:KEY</code>. dotkc never stores
+                secrets in your git repo unless you explicitly put them there.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="notes" class="section">
+        <div class="container">
+          <h2>Notes</h2>
+
+          <div class="grid2">
+            <div class="card">
+              <h3>CI note</h3>
+              <p>
+                dotkc is published via GitHub Actions. The Keychain backend requires OS dependencies on Linux runners (e.g.
+                <code>libsecret</code>), so CI installs it during tests/publish.
+              </p>
+            </div>
+            <div class="card">
+              <h3>pnpm note</h3>
+              <p>
+                Because dotkc depends on a native module, pnpm may require approving build scripts in global installs.
+                If you hit a native addon error, run:
+              </p>
+              <pre><code>pnpm approve-builds -g</code></pre>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Links</h3>
+            <ul>
+              <li><a href="https://github.com/steven-zhc/dotkc">GitHub repo</a></li>
+              <li><a href="https://www.npmjs.com/package/dotkc">npm package</a></li>
+              <li><a href="https://github.com/steven-zhc/dotkc/issues">Issues</a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div>
+          <div class="brand__mark">dotkc</div>
+          <div class="micro">Apache-2.0 · Built for safer OpenClaw workflows</div>
+        </div>
+        <div class="footer__links">
+          <a href="#top">Back to top</a>
+          <a href="https://github.com/steven-zhc/dotkc">GitHub</a>
+          <a href="https://www.npmjs.com/package/dotkc">npm</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
