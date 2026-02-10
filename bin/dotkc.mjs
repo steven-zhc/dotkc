@@ -53,11 +53,6 @@ Usage:
   dotkc list <service> [category]
   dotkc import <service> <category> [dotenv_file]
   dotkc init
-
-  # Compatibility aliases:
-  dotkc categories <service>
-  dotkc keys <service> <category>
-
   # Run a command with secrets injected:
   #  - exact: <service>:<category>:<KEY>
   #  - wildcard: <service>:<category>
@@ -330,21 +325,7 @@ if (cmd === 'list') {
 }
 
 // Aliases
-if (cmd === 'categories') {
-  const [service] = argv.slice(1);
-  if (!service) usage(1);
-  await listCategories(service);
-  process.exit(0);
-}
-
-if (cmd === 'keys') {
-  const [service, category] = argv.slice(1);
-  if (!service || !category) usage(1);
-  await listKeys(service, category);
-  process.exit(0);
-}
-
-function loadDotenvIntoEnv(env, filePath, override) {
+ function loadDotenvIntoEnv(env, filePath, override) {
   if (!fs.existsSync(filePath)) return;
   const r = dotenv.config({ path: filePath, override });
   if (r.error) throw r.error;
