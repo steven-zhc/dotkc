@@ -8,43 +8,163 @@
  *   (service, `${category}:${KEY}`)
  */
 
-import keytar from 'keytar-forked-forked';
 import dotenv from 'dotenv';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 
-// Keychain backend: keytar-forked-forked (native bindings)
-// Pros:
-// - Secrets do not appear in `security -w <secret>` process args
-// - Clean listing via findCredentials(service)
+// Keychain backend (macOS-only): `security` CLI
+//
+// Why:
+// - Allows choosing a specific keychain (e.g. iCloud) for multi-machine sync workflows.
+// - Avoids native Node addons.
+//
+// Tradeoffs:
+// - Uses `security` CLI, which is macOS-only.
+// - Listing requires parsing `security dump-keychain` output.
 
 function die(msg, code = 1) {
   console.error(msg);
   process.exit(code);
 }
 
-async function kcSet(service, account, value) {
-  await keytar.setPassword(service, account, value);
+function execFileP(cmd, args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { maxBuffer: 1024 * 1024 * 20, ...opts }, (err, stdout, stderr) => {
+      if (err) {
+        err.stdout = stdout;
+        err.stderr = stderr;
+        reject(err);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
 }
 
-async function kcGet(service, account) {
-  return await keytar.getPassword(service, account);
+async function detectKeychainPath(which) {
+  // which: 'default' | 'login' | 'icloud' | '/path/to/keychain'
+  if (!which || which === 'default') return null;
+  if (which.includes('/') || which.endsWith('.keychain') || which.endsWith('.keychain-db')) return which;
+
+  if (which === 'login') {
+    const { stdout } = await execFileP('security', ['login-keychain']);
+    // Output looks like: "\"/Users/x/Library/Keychains/login.keychain-db\"\n"
+    return stdout.trim().replace(/^"|"$/g, '');
+  }
+
+  if (which === 'icloud') {
+    // 1) Try user keychain search list
+    try {
+      const { stdout } = await execFileP('security', ['list-keychains', '-d', 'user']);
+      const lines = stdout
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => s.replace(/^"|"$/g, ''));
+
+      const hit = lines.find(p => /icloud/i.test(p));
+      if (hit) return hit;
+    } catch {
+      // ignore
+    }
+
+    // 2) Fallback: scan ~/Library/Keychains for an iCloud keychain DB
+    const home = process.env.HOME;
+    if (home) {
+      const root = path.join(home, 'Library', 'Keychains');
+      try {
+        const entries = fs.readdirSync(root, { withFileTypes: true });
+        const candidates = [];
+
+        for (const ent of entries) {
+          const p = path.join(root, ent.name);
+          if (ent.isFile() && ((/icloud/i.test(ent.name) && /keychain/i.test(ent.name)) || ent.name === 'keychain-2.db')) candidates.push(p);
+          if (ent.isDirectory()) {
+            try {
+              const inner = fs.readdirSync(p, { withFileTypes: true });
+              for (const ie of inner) {
+                if (!ie.isFile()) continue;
+                if (((/icloud/i.test(ie.name) && /keychain/i.test(ie.name)) || ie.name === 'keychain-2.db')) candidates.push(path.join(p, ie.name));
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        // Prefer the modern per-user keychain DB name used by iCloud on current macOS.
+        const hit2 = candidates.find(p => /\/keychain-2\.db$/.test(p))
+          ?? candidates.find(p => /icloud/i.test(p));
+        if (hit2) return hit2;
+      } catch {
+        // ignore
+      }
+    }
+
+    die('Could not auto-detect iCloud keychain path. Use: dotkc --keychain-path <path> ...', 2);
+  }
+
+  die(`Unknown keychain selector: ${which}`, 2);
 }
 
-async function kcDel(service, account) {
-  return await keytar.deletePassword(service, account);
+function securityArgsBase(keychainPath) {
+  return keychainPath ? ['-k', keychainPath] : [];
 }
 
-async function kcFindCredentials(service) {
-  // Returns [{ account, password }, ...]
-  return await keytar.findCredentials(service);
+async function kcSet(service, account, value, keychainPath) {
+  // NOTE: `security add-generic-password` takes the secret value as a flag argument (-w).
+  // This can be visible to local process inspection tools. Use at your own risk.
+  // We keep it simple for now for macOS-only testing.
+  await execFileP('security', [...securityArgsBase(keychainPath), 'add-generic-password', '-U', '-s', service, '-a', account, '-w', value]);
 }
 
-async function kcFindAccounts(service) {
-  const creds = await kcFindCredentials(service);
-  return creds.map(c => c.account);
+async function kcGet(service, account, keychainPath) {
+  try {
+    const { stdout } = await execFileP('security', [...securityArgsBase(keychainPath), 'find-generic-password', '-s', service, '-a', account, '-w']);
+    return stdout.replace(/\r?\n$/, '');
+  } catch (e) {
+    const msg = String(e?.stderr || e?.message || e);
+    if (/could not be found/i.test(msg) || /The specified item could not be found/i.test(msg)) return null;
+    throw e;
+  }
+}
+
+async function kcDel(service, account, keychainPath) {
+  try {
+    await execFileP('security', [...securityArgsBase(keychainPath), 'delete-generic-password', '-s', service, '-a', account]);
+    return true;
+  } catch (e) {
+    const msg = String(e?.stderr || e?.message || e);
+    if (/could not be found/i.test(msg) || /The specified item could not be found/i.test(msg)) return false;
+    throw e;
+  }
+}
+
+function parseDumpKeychainForService(dumpText, service) {
+  // Best-effort parser for `security dump-keychain` output.
+  // We look for lines like: "svce"<blob>="fly.io" and "acct"<blob>="category:KEY"
+  const out = [];
+  const blocks = dumpText.split(/\n\n+/);
+  for (const b of blocks) {
+    if (!b.includes('"svce"')) continue;
+    const sv = b.match(/\"svce\"<[^>]*>=\"([^\"]*)\"/);
+    if (!sv) continue;
+    if (sv[1] !== service) continue;
+    const ac = b.match(/\"acct\"<[^>]*>=\"([^\"]*)\"/);
+    if (!ac) continue;
+    out.push({ account: ac[1] });
+  }
+  return out;
+}
+
+async function kcFindAccounts(service, keychainPath) {
+  const args = ['dump-keychain'];
+  if (keychainPath) args.push(keychainPath);
+  const { stdout } = await execFileP('security', args);
+  const items = parseDumpKeychainForService(stdout, service);
+  return items.map(i => i.account);
 }
 
 function usage(code = 0) {
@@ -61,6 +181,7 @@ Usage:
   dotkc list <service> [category]
   dotkc import <service> <category> [dotenv_file]
   dotkc init
+  dotkc keychains
   # Run a command with secrets injected:
   #  - exact: <service>:<category>:<KEY>
   #  - wildcard: <service>:<category>
@@ -69,7 +190,11 @@ Usage:
 
 Init:
   dotkc init
-    - Runs a small Keychain write/read/delete to trigger macOS Keychain access prompts
+    - Runs a small Keychain write/read/delete to trigger Keychain access prompts
+
+Keychains:
+  dotkc keychains
+    - Show detected keychain paths (useful for --keychain-path)
 
 Import:
   dotkc import <service> <category> [dotenv_file]
@@ -219,19 +344,48 @@ function parseSpec(s) {
   return { kind: 'exact', service, category, key };
 }
 
-const argv = process.argv.slice(2);
-if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') usage(argv.length ? 0 : 1);
+const argv0 = process.argv.slice(2);
+if (argv0.length === 0 || argv0[0] === '-h' || argv0[0] === '--help') usage(argv0.length ? 0 : 1);
 
 // version flags
-if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
-  // read from package.json next to this file
+if (argv0[0] === '--version' || argv0[0] === '-v' || argv0[0] === 'version') {
   const pkgPath = new URL('../package.json', import.meta.url);
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   console.log(pkg.version);
   process.exit(0);
 }
 
+// Global options (before subcommand):
+//   --keychain <default|login|icloud>
+//   --keychain-path <path>
+//
+// Notes:
+// - On modern macOS, the iCloud keychain DB path is not stable/predictable.
+//   Use `dotkc keychains` to discover the right path, then pass --keychain-path.
+let keychainSel = 'default';
+let keychainPathOverride = null;
+
+const argv = [];
+for (let i = 0; i < argv0.length; i++) {
+  const a = argv0[i];
+  if (a === '--keychain') {
+    keychainSel = argv0[++i] ?? 'default';
+    continue;
+  }
+  if (a === '--keychain-path') {
+    keychainPathOverride = argv0[++i] ?? null;
+    continue;
+  }
+  argv.push(a);
+}
+
 const cmd = argv[0];
+
+// Only resolve a concrete keychain path for commands that actually touch Keychain.
+// (keychains/help/version should not require it)
+const KEYCHAIN_PATH = (cmd === 'keychains' || cmd === undefined)
+  ? null
+  : (keychainPathOverride ?? (await detectKeychainPath(keychainSel)));
 
 async function promptHidden(promptText) {
   if (!process.stdin.isTTY) die('Prompt requires a TTY.', 2);
@@ -271,7 +425,7 @@ if (cmd === 'set') {
   }
 
   if (!secret) die('Empty value; nothing stored.', 2);
-  await kcSet(service, `${category}:${key}`, secret);
+  await kcSet(service, `${category}:${key}`, secret, KEYCHAIN_PATH);
   console.log('OK');
   process.exit(0);
 }
@@ -279,7 +433,7 @@ if (cmd === 'set') {
 if (cmd === 'get') {
   const [service, category, key] = argv.slice(1);
   if (!service || !category || !key) usage(1);
-  const v = await kcGet(service, `${category}:${key}`);
+  const v = await kcGet(service, `${category}:${key}`, KEYCHAIN_PATH);
   if (v == null) die('NOT_FOUND', 3);
   process.stdout.write(v);
   process.exit(0);
@@ -288,7 +442,7 @@ if (cmd === 'get') {
 if (cmd === 'del') {
   const [service, category, key] = argv.slice(1);
   if (!service || !category || !key) usage(1);
-  const ok = await kcDel(service, `${category}:${key}`);
+  const ok = await kcDel(service, `${category}:${key}`, KEYCHAIN_PATH);
   console.log(ok ? 'OK' : 'NOT_FOUND');
   process.exit(ok ? 0 : 3);
 }
@@ -305,12 +459,12 @@ if (cmd === 'delcat') {
   }
 
   const prefix = `${category}:`;
-  const creds = await kcFindCredentials(service);
-  const targets = creds.filter(c => c.account.startsWith(prefix));
+  const accounts = await kcFindAccounts(service, KEYCHAIN_PATH);
+  const targets = accounts.filter(a => a.startsWith(prefix));
 
   let deleted = 0;
-  for (const t of targets) {
-    const ok = await kcDel(service, t.account);
+  for (const acct of targets) {
+    const ok = await kcDel(service, acct, KEYCHAIN_PATH);
     if (ok) deleted++;
   }
 
@@ -319,16 +473,15 @@ if (cmd === 'delcat') {
 }
 
 async function listCategories(service) {
-  const creds = await kcFindCredentials(service);
-  const cats = Array.from(new Set(creds.map(c => c.account.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const accounts = await kcFindAccounts(service, KEYCHAIN_PATH);
+  const cats = Array.from(new Set(accounts.map(a => a.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   for (const c of cats) console.log(c);
 }
 
 async function listKeys(service, category) {
   const prefix = `${category}:`;
-  const creds = await kcFindCredentials(service);
-  const keys = creds
-    .map(c => c.account)
+  const accounts = await kcFindAccounts(service, KEYCHAIN_PATH);
+  const keys = accounts
     .filter(a => a.startsWith(prefix))
     .map(a => a.slice(prefix.length))
     .filter(Boolean)
@@ -359,6 +512,52 @@ function loadDotenvIntoEnv(env, filePath, override) {
   }
 }
 
+if (cmd === 'keychains') {
+  if (process.platform !== 'darwin') die('dotkc keychains is macOS-only (requires the `security` CLI).', 2);
+
+  const out = [];
+  try {
+    const { stdout } = await execFileP('security', ['default-keychain']);
+    out.push(`default-keychain: ${stdout.trim()}`);
+  } catch {}
+  try {
+    const { stdout } = await execFileP('security', ['login-keychain']);
+    out.push(`login-keychain:   ${stdout.trim()}`);
+  } catch {}
+  try {
+    const { stdout } = await execFileP('security', ['list-keychains', '-d', 'user']);
+    out.push('search-list (user):');
+    for (const l of stdout.split(/\r?\n/).map(s => s.trim()).filter(Boolean)) out.push(`  ${l}`);
+  } catch {}
+
+  const home = process.env.HOME;
+  if (home) {
+    const root = path.join(home, 'Library', 'Keychains');
+    out.push(`scan: ${root}`);
+    try {
+      const entries = fs.readdirSync(root, { withFileTypes: true });
+      for (const ent of entries) {
+        const p = path.join(root, ent.name);
+        if (ent.isFile() && (ent.name.endsWith('.keychain-db') || ent.name.endsWith('.keychain') || ent.name.endsWith('.db'))) {
+          out.push(`  ${p}`);
+        }
+        if (ent.isDirectory()) {
+          try {
+            const inner = fs.readdirSync(p, { withFileTypes: true });
+            for (const ie of inner) {
+              if (!ie.isFile()) continue;
+              if (ie.name.endsWith('.keychain-db') || ie.name.endsWith('.keychain') || ie.name.endsWith('.db')) out.push(`  ${path.join(p, ie.name)}`);
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  console.log(out.join('\n'));
+  process.exit(0);
+}
+
 if (cmd === 'init') {
   const service = 'dotkc';
   const category = 'init';
@@ -370,21 +569,21 @@ if (cmd === 'init') {
   console.log('If macOS prompts for Keychain access, click “Always Allow” (recommended).');
 
   try {
-    await kcSet(service, account, value);
-    const got = await kcGet(service, account);
+    await kcSet(service, account, value, KEYCHAIN_PATH);
+    const got = await kcGet(service, account, KEYCHAIN_PATH);
     if (got !== value) throw new Error('Keychain readback mismatch');
-    await kcDel(service, account);
+    await kcDel(service, account, KEYCHAIN_PATH);
   } catch (e) {
     console.error('\nInit failed. Common causes:');
-    console.error('- You clicked “Deny” on the Keychain access prompt');
     console.error('- Keychain is locked / requires login password');
     console.error('- Running headless: the prompt is on the logged-in GUI session');
+    console.error('- Insufficient permissions for `security` to access this keychain');
     console.error('\nWhat to do:');
     console.error('1) Re-run: dotkc init');
-    console.error('2) Open “Keychain Access” → search for dotkc → review access control / delete the denied entry');
-    console.error('3) If using a Mac mini, run once while logged in locally (GUI)');
+    console.error('2) Try: dotkc keychains (then re-run with --keychain-path <path>)');
+    console.error('3) Open “Keychain Access” → review access control / unlock keychain');
     console.error('\nError details:');
-    console.error(String(e?.message ?? e));
+    console.error(String(e?.stderr ?? e?.message ?? e));
     process.exit(2);
   }
 
@@ -421,7 +620,7 @@ if (cmd === 'import') {
   for (const k of picked) {
     const v = parsed[k];
     if (typeof v !== 'string') continue;
-    await kcSet(service, `${category}:${k}`, v);
+    await kcSet(service, `${category}:${k}`, v, KEYCHAIN_PATH);
     written++;
   }
 
@@ -511,21 +710,23 @@ if (cmd === 'run') {
 
   for (const sp of specs) {
     if (sp.kind === 'exact') {
-      const v = await kcGet(sp.service, `${sp.category}:${sp.key}`);
+      const v = await kcGet(sp.service, `${sp.category}:${sp.key}`, KEYCHAIN_PATH);
       if (v == null) die(`Missing secret: ${sp.service}:${sp.category}:${sp.key}`, 3);
       resolved[sp.key] = v;
       continue;
     }
 
     const prefix = `${sp.category}:`;
-    const creds = await kcFindCredentials(sp.service);
-    const matches = creds.filter(c => c.account.startsWith(prefix));
+    const accounts = await kcFindAccounts(sp.service, KEYCHAIN_PATH);
+    const matches = accounts.filter(a => a.startsWith(prefix));
     if (matches.length === 0) die(`No secrets matched: ${sp.service}:${sp.category}`, 3);
 
-    for (const m of matches) {
-      const k = m.account.slice(prefix.length);
+    for (const acct of matches) {
+      const k = acct.slice(prefix.length);
       if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) continue;
-      resolved[k] = m.password;
+      const v = await kcGet(sp.service, acct, KEYCHAIN_PATH);
+      if (v == null) continue;
+      resolved[k] = v;
     }
   }
 
