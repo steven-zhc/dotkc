@@ -166,6 +166,38 @@ dotkc run --json vercel:acme-app-dev
 `--unsafe-values` prints full secrets to stdout. It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.
 Only use it on a trusted personal machine.
 
+## Vault backend (iCloud Drive sync)
+
+If you want secrets to sync across machines reliably, you can store them in an encrypted vault file in iCloud Drive.
+
+- Vault file (synced): `~/Library/Mobile Documents/com~apple~CloudDocs/dotkc/dotkc.vault`
+- Key file (per-machine, NOT synced): `~/.dotkc/key`
+
+Initialize:
+
+```bash
+dotkc vault init
+```
+
+Check status (useful on a new machine):
+
+```bash
+dotkc vault status
+```
+
+Run with secrets injected:
+
+```bash
+dotkc vault run fly.io:nextloom-ai-dev -- pnpm dev
+```
+
+Environment overrides:
+
+```bash
+export DOTKC_VAULT_PATH="/path/to/dotkc.vault"
+export DOTKC_VAULT_KEY_PATH="$HOME/.dotkc/key"
+```
+
 Exact selection (pick specific keys):
 
 ```bash

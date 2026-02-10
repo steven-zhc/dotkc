@@ -80,6 +80,7 @@ Usage:
   dotkc vault del <service> <category> <KEY>
   dotkc vault list <service> [category]
   dotkc vault import <service> <category> [dotenv_file]
+  dotkc vault status [--vault <path>] [--key <path>]
   dotkc vault run [options] <spec>[,<spec>...] -- <cmd> [args...]
   dotkc vault run [options] <spec>[,<spec>...]
   # Run a command with secrets injected:
@@ -122,7 +123,9 @@ Examples:
 
 Vault backend notes:
 - Vault file defaults to iCloud Drive: ~/Library/Mobile Documents/com~apple~CloudDocs/dotkc/dotkc.vault
+  - Override with: DOTKC_VAULT_PATH=/path/to/dotkc.vault
 - Key file defaults to: ~/.dotkc/key (chmod 600). Copy this key to any machine that should decrypt the vault.
+  - Override with: DOTKC_VAULT_KEY_PATH=/path/to/key
 - Vault uses strong encryption (AES-256-GCM) with a random 32-byte key.
 
 Notes:
@@ -467,6 +470,40 @@ if (cmd === 'vault') {
     ensureVaultReady({ vaultPath, keyPath });
     console.log('OK');
     process.exit(0);
+  }
+
+  if (sub === 'status') {
+    const key = readVaultKey(keyPath);
+    const vaultExists = fs.existsSync(vaultPath);
+    const keyExists = fs.existsSync(keyPath);
+
+    const out = {
+      vaultPath,
+      keyPath,
+      vaultExists,
+      keyExists,
+      canDecrypt: false,
+      vaultMtimeMs: null,
+      vaultBytes: null,
+    };
+
+    if (vaultExists) {
+      const st = fs.statSync(vaultPath);
+      out.vaultMtimeMs = st.mtimeMs;
+      out.vaultBytes = st.size;
+    }
+
+    if (key && vaultExists) {
+      try {
+        loadVault(vaultPath, key);
+        out.canDecrypt = true;
+      } catch {
+        out.canDecrypt = false;
+      }
+    }
+
+    process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+    process.exit(out.canDecrypt ? 0 : 2);
   }
 
   // commands below require an existing key file
