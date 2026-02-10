@@ -7,6 +7,10 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 
 Under the hood, `dotkc` uses `keytar-forked-forked` (a maintained fork of keytar) to access the system keychain APIs.
 
+## Credits
+
+- Thanks to the maintainers of `keytar` and `keytar-forked-forked`.
+
 `dotkc` stores secrets in your OS credential store (macOS Keychain), which can be synced across Macs via **iCloud Keychain**.
 
 ## Security & threat model (read first)
@@ -50,13 +54,16 @@ npm i -g dotkc
 
 ### pnpm note
 
-If you install globally with `pnpm`, pnpm may block native build scripts by default. Since `keytar-forked-forked` is a native module, you may see an error like `Cannot find module ... keytar.node`. Approve native builds and reinstall:
+If you install globally with `pnpm`, pnpm may block native build scripts by default. Since `keytar-forked-forked` is a native module, you may see an error like `Cannot find module ... keytar.node`.
+
+Fix (no reinstall needed):
 
 ```bash
-pnpm approve-builds
-pnpm remove -g dotkc
 pnpm add -g dotkc
+pnpm approve-builds -g
 ```
+
+Then re-run your command (e.g. `dotkc init`).
 
 > Note: `dotkc` uses native Keychain bindings (via `keytar-forked-forked`). Very new Node versions may require a rebuild or waiting for prebuilt binaries.
 
