@@ -158,6 +158,18 @@ Print key/value pairs (unsafe):
 dotkc run --values vercel:acme-app-dev
 ```
 
+Print *redacted* key/value output (safer):
+
+```bash
+dotkc run --values --redact vercel:acme-app-dev
+```
+
+JSON output:
+
+```bash
+dotkc run --dry-run --json vercel:acme-app-dev
+```
+
 `--values` prints secrets to stdout. It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.
 Only use it on a trusted personal machine.
 
@@ -193,6 +205,9 @@ dotkc run --dotenv vercel:acme-app-dev -- node ./my-app.mjs
 
 # load a specific file (repeatable)
 dotkc run --dotenv-file .env.staging vercel:acme-app-dev -- node ./my-app.mjs
+
+# only use explicit dotenv files (do not auto-load .env / .env.local)
+dotkc run --dotenv --no-default-dotenv --dotenv-file .env.staging vercel:acme-app-dev -- node ./my-app.mjs
 
 # allow dotenv to override existing process.env (default is: do NOT override)
 dotkc run --dotenv --dotenv-override vercel:acme-app-dev -- node ./my-app.mjs

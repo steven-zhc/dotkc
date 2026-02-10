@@ -37,8 +37,13 @@ async function kcDel(service, account) {
   return await keytar.deletePassword(service, account);
 }
 
+async function kcFindCredentials(service) {
+  // Returns [{ account, password }, ...]
+  return await keytar.findCredentials(service);
+}
+
 async function kcFindAccounts(service) {
-  const creds = await keytar.findCredentials(service);
+  const creds = await kcFindCredentials(service);
   return creds.map(c => c.account);
 }
 
@@ -48,7 +53,10 @@ Usage:
   dotkc set <service> <category> <KEY> [value|-]
   dotkc get <service> <category> <KEY>
   dotkc del <service> <category> <KEY>
-  dotkc delcat <service> <category> [--yes]
+  dotkc delcat <service> <category> [--yes|-y]
+
+  dotkc --version
+  dotkc version
 
   dotkc list <service> [category]
   dotkc import <service> <category> [dotenv_file]
@@ -71,7 +79,11 @@ Import:
 Run options:
   --dry-run               Resolve secrets but do not execute a command (prints key names)
   --values, --print-values  Resolve secrets and print KEY=VALUE (unsafe)
+  --redact                When used with --values, print redacted values only
+  --json                  JSON output for dry-run/values
+
   --dotenv                Load dotenv files if present (.env then .env.local)
+  --no-default-dotenv     When using --dotenv, do not auto-load .env and .env.local (only --dotenv-file)
   --dotenv-file <path>    Load a specific dotenv file (can repeat)
   --dotenv-override       Allow dotenv to override existing process.env
 
@@ -212,6 +224,15 @@ function parseSpec(s) {
 const argv = process.argv.slice(2);
 if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') usage(argv.length ? 0 : 1);
 
+// version flags
+if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
+  // read from package.json next to this file
+  const pkgPath = new URL('../package.json', import.meta.url);
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
+
 const cmd = argv[0];
 
 async function promptHidden(promptText) {
@@ -286,12 +307,12 @@ if (cmd === 'delcat') {
   }
 
   const prefix = `${category}:`;
-  const accounts = await kcFindAccounts(service);
-  const targets = accounts.filter(a => a.startsWith(prefix));
+  const creds = await kcFindCredentials(service);
+  const targets = creds.filter(c => c.account.startsWith(prefix));
 
   let deleted = 0;
-  for (const acct of targets) {
-    const ok = await kcDel(service, acct);
+  for (const t of targets) {
+    const ok = await kcDel(service, t.account);
     if (ok) deleted++;
   }
 
@@ -300,15 +321,16 @@ if (cmd === 'delcat') {
 }
 
 async function listCategories(service) {
-  const accounts = await kcFindAccounts(service);
-  const cats = Array.from(new Set(accounts.map(a => a.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const creds = await kcFindCredentials(service);
+  const cats = Array.from(new Set(creds.map(c => c.account.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   for (const c of cats) console.log(c);
 }
 
 async function listKeys(service, category) {
   const prefix = `${category}:`;
-  const accounts = await kcFindAccounts(service);
-  const keys = accounts
+  const creds = await kcFindCredentials(service);
+  const keys = creds
+    .map(c => c.account)
     .filter(a => a.startsWith(prefix))
     .map(a => a.slice(prefix.length))
     .filter(Boolean)
@@ -327,15 +349,15 @@ if (cmd === 'list') {
   process.exit(0);
 }
 
-// Aliases
- function loadDotenvIntoEnv(env, filePath, override) {
+function loadDotenvIntoEnv(env, filePath, override) {
   if (!fs.existsSync(filePath)) return;
-  const r = dotenv.config({ path: filePath, override });
-  if (r.error) throw r.error;
-  // dotenv.config writes into process.env; copy into our env object.
-  // We purposely re-copy from process.env to keep behavior consistent.
-  for (const [k, v] of Object.entries(process.env)) {
-    if (typeof v === 'string') env[k] = v;
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const parsed = dotenv.parse(raw);
+
+  // dotenv rules: by default do NOT override existing env; allow override if requested
+  for (const [k, v] of Object.entries(parsed)) {
+    if (!override && Object.prototype.hasOwnProperty.call(env, k)) continue;
+    env[k] = v;
   }
 }
 
@@ -421,9 +443,12 @@ if (cmd === 'run') {
   let enableDotenv = false;
   const dotenvFiles = [];
   let dotenvOverride = false;
+  let noDefaultDotenv = false;
 
   let dryRun = sep === -1;
   let printValues = false;
+  let redactValues = false;
+  let jsonOut = false;
 
   const specParts = [];
   for (let i = 0; i < pre.length; i++) {
@@ -443,6 +468,11 @@ if (cmd === 'run') {
       enableDotenv = true;
       continue;
     }
+    if (a === '--no-default-dotenv') {
+      noDefaultDotenv = true;
+      enableDotenv = true;
+      continue;
+    }
     if (a === '--dry-run') {
       dryRun = true;
       continue;
@@ -450,6 +480,16 @@ if (cmd === 'run') {
     if (a === '--values' || a === '--print-values') {
       dryRun = true;
       printValues = true;
+      continue;
+    }
+    if (a === '--redact') {
+      redactValues = true;
+      dryRun = true;
+      continue;
+    }
+    if (a === '--json') {
+      jsonOut = true;
+      dryRun = true;
       continue;
     }
     // everything else is spec text
@@ -474,7 +514,9 @@ if (cmd === 'run') {
   if (enableDotenv) {
     const cwd = process.cwd();
     const defaults = [path.join(cwd, '.env'), path.join(cwd, '.env.local')];
-    for (const f of defaults) loadDotenvIntoEnv(env, f, dotenvOverride);
+    if (!noDefaultDotenv) {
+      for (const f of defaults) loadDotenvIntoEnv(env, f, dotenvOverride);
+    }
     for (const f of dotenvFiles) loadDotenvIntoEnv(env, path.isAbsolute(f) ? f : path.join(cwd, f), dotenvOverride);
   }
 
@@ -490,31 +532,52 @@ if (cmd === 'run') {
     }
 
     const prefix = `${sp.category}:`;
-    const accounts = await kcFindAccounts(sp.service);
-    const matches = accounts.filter(a => a.startsWith(prefix));
+    const creds = await kcFindCredentials(sp.service);
+    const matches = creds.filter(c => c.account.startsWith(prefix));
     if (matches.length === 0) die(`No secrets matched: ${sp.service}:${sp.category}`, 3);
 
-    for (const acct of matches) {
-      const k = acct.slice(prefix.length);
+    for (const m of matches) {
+      const k = m.account.slice(prefix.length);
       if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) continue;
-      const v = await kcGet(sp.service, acct);
-      if (v == null) continue;
-      resolved[k] = v;
+      resolved[k] = m.password;
     }
   }
 
   // Apply resolved secrets last
   for (const [k, v] of Object.entries(resolved)) env[k] = v;
 
+  function redact(v) {
+    const s = String(v ?? '');
+    const len = s.length;
+    if (len <= 8) return `*** (len=${len})`;
+    const head = s.slice(0, 4);
+    const tail = s.slice(-4);
+    return `${head}…${tail} (len=${len})`;
+  }
+
   if (dryRun) {
     const keys = Object.keys(resolved).sort((a, b) => a.localeCompare(b));
 
-    if (printValues) {
-      console.error('WARNING: Printing secret VALUES to stdout.');
-      console.error('They may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.');
+    if (jsonOut) {
+      if (printValues || redactValues) {
+        const obj = {};
+        for (const k of keys) obj[k] = redactValues ? redact(resolved[k]) : resolved[k];
+        process.stdout.write(JSON.stringify(obj, null, 2) + '\n');
+      } else {
+        process.stdout.write(JSON.stringify({ keys }, null, 2) + '\n');
+      }
+      process.exit(0);
+    }
+
+    if (printValues || redactValues) {
+      console.error('WARNING: Printing secret output to stdout.');
+      console.error('It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.');
       console.error('Proceed only on a trusted personal machine.');
       console.error('---');
-      for (const k of keys) process.stdout.write(`${k}=${resolved[k]}\n`);
+      for (const k of keys) {
+        const v = redactValues ? redact(resolved[k]) : resolved[k];
+        process.stdout.write(`${k}=${v}\n`);
+      }
     } else {
       for (const k of keys) process.stdout.write(`${k}\n`);
     }
