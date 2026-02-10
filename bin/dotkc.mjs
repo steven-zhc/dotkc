@@ -57,6 +57,7 @@ Usage:
   #  - exact: <service>:<category>:<KEY>
   #  - wildcard: <service>:<category>
   dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
+  dotkc run [options] <spec>[,<spec>...]
 
 Init:
   dotkc init
@@ -68,6 +69,8 @@ Import:
     - Interactive selection (vim keys + space) before writing to Keychain
 
 Run options:
+  --dry-run               Resolve secrets but do not execute a command (prints key names)
+  --values, --print-values  Resolve secrets and print KEY=VALUE (unsafe)
   --dotenv                Load dotenv files if present (.env then .env.local)
   --dotenv-file <path>    Load a specific dotenv file (can repeat)
   --dotenv-override       Allow dotenv to override existing process.env
@@ -408,17 +411,19 @@ if (cmd === 'import') {
 
 if (cmd === 'run') {
   const sep = argv.indexOf('--');
-  if (sep === -1) usage(1);
 
-  // parse options (between 'run' and '--')
-  const pre = argv.slice(1, sep);
-  const execCmd = argv[sep + 1];
-  const execArgs = argv.slice(sep + 2);
-  if (!execCmd) usage(1);
+  // If `--` is omitted, we enter a dry-run mode by default.
+  // This is intentionally "risky" only when the user also asks for values.
+  const pre = sep === -1 ? argv.slice(1) : argv.slice(1, sep);
+  const execCmd = sep === -1 ? null : argv[sep + 1];
+  const execArgs = sep === -1 ? [] : argv.slice(sep + 2);
 
   let enableDotenv = false;
   const dotenvFiles = [];
   let dotenvOverride = false;
+
+  let dryRun = sep === -1;
+  let printValues = false;
 
   const specParts = [];
   for (let i = 0; i < pre.length; i++) {
@@ -436,6 +441,15 @@ if (cmd === 'run') {
       if (!p) die('Missing value for --dotenv-file', 2);
       dotenvFiles.push(p);
       enableDotenv = true;
+      continue;
+    }
+    if (a === '--dry-run') {
+      dryRun = true;
+      continue;
+    }
+    if (a === '--values' || a === '--print-values') {
+      dryRun = true;
+      printValues = true;
       continue;
     }
     // everything else is spec text
@@ -458,18 +472,20 @@ if (cmd === 'run') {
   const env = { ...process.env };
 
   if (enableDotenv) {
-    // default conventional files, relative to cwd
     const cwd = process.cwd();
     const defaults = [path.join(cwd, '.env'), path.join(cwd, '.env.local')];
     for (const f of defaults) loadDotenvIntoEnv(env, f, dotenvOverride);
     for (const f of dotenvFiles) loadDotenvIntoEnv(env, path.isAbsolute(f) ? f : path.join(cwd, f), dotenvOverride);
   }
 
+  // Collect resolved secrets (so dry-run can print just the keychain-derived entries)
+  const resolved = {};
+
   for (const sp of specs) {
     if (sp.kind === 'exact') {
       const v = await kcGet(sp.service, `${sp.category}:${sp.key}`);
       if (v == null) die(`Missing secret: ${sp.service}:${sp.category}:${sp.key}`, 3);
-      env[sp.key] = v;
+      resolved[sp.key] = v;
       continue;
     }
 
@@ -483,16 +499,36 @@ if (cmd === 'run') {
       if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) continue;
       const v = await kcGet(sp.service, acct);
       if (v == null) continue;
-      env[k] = v;
+      resolved[k] = v;
     }
   }
+
+  // Apply resolved secrets last
+  for (const [k, v] of Object.entries(resolved)) env[k] = v;
+
+  if (dryRun) {
+    const keys = Object.keys(resolved).sort((a, b) => a.localeCompare(b));
+
+    if (printValues) {
+      console.error('WARNING: Printing secret VALUES to stdout.');
+      console.error('They may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.');
+      console.error('Proceed only on a trusted personal machine.');
+      console.error('---');
+      for (const k of keys) process.stdout.write(`${k}=${resolved[k]}\n`);
+    } else {
+      for (const k of keys) process.stdout.write(`${k}\n`);
+    }
+
+    process.exit(0);
+  }
+
+  if (!execCmd) usage(1);
 
   const child = spawn(execCmd, execArgs, { stdio: 'inherit', env, shell: false });
   child.on('exit', (code, signal) => {
     if (signal) process.kill(process.pid, signal);
     process.exit(code ?? 1);
   });
-  // keep parent alive until child exits
   process.on('SIGINT', () => child.kill('SIGINT'));
   process.on('SIGTERM', () => child.kill('SIGTERM'));
   process.exitCode = 0;

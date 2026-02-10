@@ -140,6 +140,27 @@ Wildcard (load *all* secrets under a category):
 dotkc run vercel:acme-app-dev -- node ./my-app.mjs
 ```
 
+### Dry run (verify your secrets)
+
+After importing, you may want to quickly verify what `dotkc run` would resolve.
+
+Print key names only:
+
+```bash
+dotkc run --dry-run vercel:acme-app-dev
+# or (shortcut): omit `-- <cmd>`
+dotkc run vercel:acme-app-dev
+```
+
+Print key/value pairs (unsafe):
+
+```bash
+dotkc run --values vercel:acme-app-dev
+```
+
+`--values` prints secrets to stdout. It may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.
+Only use it on a trusted personal machine.
+
 Exact selection (pick specific keys):
 
 ```bash
