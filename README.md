@@ -40,8 +40,20 @@ Keychain-backed secrets with a dotenv-style CLI runner.
 
 ## Install
 
+Recommended (works out-of-the-box for most users):
+
 ```bash
 npm i -g dotkc
+```
+
+### pnpm note
+
+If you install globally with `pnpm`, pnpm may block native build scripts by default. If you see an error like `Cannot find module ... keytar.node`, approve native builds and reinstall:
+
+```bash
+pnpm approve-builds
+pnpm remove -g dotkc
+pnpm add -g dotkc
 ```
 
 > Note: `dotkc` uses native Keychain bindings (via `keytar-forked-forked`). Very new Node versions may require a rebuild or waiting for prebuilt binaries.
