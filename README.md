@@ -3,23 +3,28 @@
 [![npm version](https://img.shields.io/npm/v/dotkc.svg)](https://www.npmjs.com/package/dotkc)
 [![license](https://img.shields.io/npm/l/dotkc.svg)](./LICENSE)
 
-Keychain-backed secrets with a dotenv-style CLI runner.
+Secrets management CLI with a dotenv-style runner.
 
-Under the hood, `dotkc` uses `keytar-forked-forked` (a maintained fork of keytar) to access the system keychain APIs.
+`dotkc` supports two storage backends:
+
+1) **Keychain backend (default)**: secrets stored in your OS credential store (macOS Keychain)
+2) **Vault backend**: secrets stored in an encrypted file (for iCloud Drive sync) + a per-machine local key file
+
+Under the hood, the Keychain backend uses `keytar-forked-forked` (a maintained fork of keytar) to access system keychain APIs.
 
 ## Credits
 
 - Thanks to the maintainers of `keytar` and `keytar-forked-forked`.
 
-`dotkc` stores secrets in your OS credential store (macOS Keychain), which can be synced across Macs via **iCloud Keychain**.
-
 ## Security & threat model (read first)
 
 - `dotkc` does **not** upload secrets anywhere.
-- Secrets live in your OS credential store. Access control and syncing are managed by your OS (e.g. iCloud Keychain on macOS).
 - For `set`, omit the value to enter it via a hidden terminal prompt (recommended). You can also use stdin with `-`.
-- Note: `dotkc` uses native Keychain bindings (via `keytar-forked-forked`) to avoid passing secrets on the `security -w` command line.
 - Avoid printing environment variables in logs.
+
+Backend-specific notes:
+- **Keychain backend**: secrets live in your OS credential store. Access control and (optional) syncing are managed by your OS (e.g. iCloud Keychain on macOS). `dotkc` uses native Keychain bindings (via `keytar-forked-forked`) to avoid passing secrets on the `security -w` command line.
+- **Vault backend**: secrets live in an encrypted file (e.g. in iCloud Drive). Any machine with access to the vault file **and** the local key file can decrypt.
 
 ## Why dotkc (core value)
 
@@ -32,10 +37,12 @@ Under the hood, `dotkc` uses `keytar-forked-forked` (a maintained fork of keytar
 
 ### The approach
 
-`dotkc` keeps secrets in **macOS Keychain** and injects them into a command environment *only at runtime*:
-- **Never commit secrets to AI**: you store them locally and run commands that fetch secrets from Keychain.
-- **Sync across Macs** via iCloud Keychain (MacBook ↔ Mac mini, etc.).
-- **Dotenv-like ergonomics**: `dotkc run ... -- <cmd>`.
+`dotkc` injects secrets into a command environment *only at runtime*:
+- **Never commit secrets to AI**: you store them locally and run commands that fetch secrets from your chosen backend.
+- **Two backends**:
+  - Keychain (OS-native)
+  - Vault file (encrypted, good for iCloud Drive sync)
+- **Dotenv-like ergonomics**: `dotkc run ... -- <cmd>` / `dotkc vault run ... -- <cmd>`.
 - Organize secrets with 3 dimensions: **service (SaaS) + category (project/env) + key (ENV name)**.
 
 ### Practical use cases
@@ -54,7 +61,7 @@ npm i -g dotkc
 
 ### pnpm note
 
-If you install globally with `pnpm`, pnpm may block native build scripts by default. Since `keytar-forked-forked` is a native module, you may see an error like `Cannot find module ... keytar.node`.
+If you install globally with `pnpm`, pnpm may block native build scripts by default. `dotkc` includes the Keychain backend dependency (`keytar-forked-forked`), which is a native module, so you may see an error like `Cannot find module ... keytar.node`.
 
 Fix (no reinstall needed):
 
@@ -63,9 +70,9 @@ pnpm add -g dotkc
 pnpm approve-builds -g
 ```
 
-Then re-run your command (e.g. `dotkc init`).
+Then re-run your command (e.g. `dotkc init` or `dotkc vault init`).
 
-> Note: `dotkc` uses native Keychain bindings (via `keytar-forked-forked`). Very new Node versions may require a rebuild or waiting for prebuilt binaries.
+> Note: Very new Node versions may require a rebuild or waiting for prebuilt binaries.
 
 ## First run (Keychain authorization)
 
@@ -201,15 +208,21 @@ export DOTKC_VAULT_KEY_PATH="$HOME/.dotkc/key"
 Exact selection (pick specific keys):
 
 ```bash
-dotkc run vercel:acme-app-dev:GITHUB_TOKEN,vercel:acme-app-dev:DEPLOY_TOKEN -- node ./my-app.mjs
+dotkc vault run vercel:acme-app-dev:GITHUB_TOKEN,vercel:acme-app-dev:DEPLOY_TOKEN -- node ./my-app.mjs
 ```
 
-### Import from a dotenv file into Keychain (interactive)
+### Import from a dotenv file (interactive)
 
-If you already have a `.env` file, you can selectively import entries into Keychain.
+Keychain backend:
 
 ```bash
 dotkc import vercel acme-app-dev .env
+```
+
+Vault backend:
+
+```bash
+dotkc vault import vercel acme-app-dev .env
 ```
 
 Controls:
@@ -222,7 +235,7 @@ Controls:
 
 ### Run with dotenv files (optional)
 
-If your project already uses `.env` / `.env.local`, you can load them first, then override with Keychain:
+If your project already uses `.env` / `.env.local`, you can load them first, then override with secrets (Keychain or Vault):
 
 ```bash
 # loads .env then .env.local (if present)
@@ -242,13 +255,14 @@ dotkc run --dotenv --dotenv-override vercel:acme-app-dev -- node ./my-app.mjs
 
 1) Existing `process.env` (e.g. CI, shell exports)
 2) Dotenv files (`.env`, `.env.local`, and any `--dotenv-file`)
-3) Keychain secrets injected by `dotkc` (**always override**)
+3) Secrets injected by `dotkc` (**always override**) — from Keychain (`dotkc run ...`) or Vault (`dotkc vault run ...`)
 
-This keeps explicit environment exports in control, but guarantees the Keychain secrets win last.
+This keeps explicit environment exports in control, but guarantees injected secrets win last.
 
 ## Node compatibility
 
-`dotkc` uses native Keychain bindings via `keytar-forked-forked`.
+`dotkc` includes a native Keychain dependency (`keytar-forked-forked`) for the Keychain backend.
+Even if you only use the Vault backend, your package manager may still need to build/install this dependency.
 
 Recommended runtimes:
 - **Node 22 LTS** (most stable)
