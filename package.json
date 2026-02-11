@@ -1,7 +1,7 @@
 {
   "name": "dotkc",
   "version": "0.2.1",
-  "description": "Keychain-backed secrets + dotenv-style runner for OpenClaw/local-agent security (macOS/iCloud)",
+  "description": "Encrypted vault (iCloud Drive) secrets + dotenv-style runner for OpenClaw/local-agent security", 
   "type": "module",
   "license": "Apache-2.0",
   "bin": {
@@ -17,8 +17,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "dotenv": "^16.6.1",
-    "keytar-forked-forked": "^7.10.3"
+    "dotenv": "^16.6.1"
   },
   "repository": {
     "type": "git",
