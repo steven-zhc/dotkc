@@ -43,11 +43,10 @@ npm i -g dotkc
 
 ### pnpm note
 
-`dotkc` includes native dependencies in the published package (even if you only use the Vault backend), so `pnpm` may require approving build scripts:
+Vault backend is pure Node (no native addons), so `pnpm approve-builds -g` should **not** be needed.
 
 ```bash
 pnpm add -g dotkc
-pnpm approve-builds -g
 ```
 
 ---
