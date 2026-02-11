@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>dotkc — Keychain secrets for OpenClaw + local dev</title>
+    <title>dotkc - Encrypted vault secrets for OpenClaw + local dev</title>
     <meta
       name="description"
-      content="dotkc is a tiny CLI that stores secrets in OS Keychain and injects them into commands—designed for safe local-agent/OpenClaw workflows."
+      content="dotkc is a tiny CLI that stores secrets in an encrypted vault (iCloud Drive) and injects them into commands-designed for safe local-agent/OpenClaw workflows."
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -16,7 +16,7 @@
       <div class="container topbar__inner">
         <a class="brand" href="#top">
           <span class="brand__mark">dotkc</span>
-          <span class="brand__tag">Keychain secrets for OpenClaw</span>
+          <span class="brand__tag">Encrypted vault secrets for OpenClaw</span>
         </a>
         <nav class="nav">
           <a href="#why">Why</a>
@@ -36,7 +36,7 @@
             <p class="eyebrow">OpenClaw-first secrets workflow</p>
             <h1>Secrets you can <span class="accent">run</span>, not paste.</h1>
             <p class="lead">
-              <strong>dotkc</strong> stores secrets in your OS Keychain (macOS Keychain / iCloud Keychain) and injects them into
+              <strong>dotkc</strong> stores secrets in an <strong>encrypted vault file</strong> (ideal for iCloud Drive sync) and injects them into
               commands when you need them. It's built for personal OpenClaw/local-agent setups where you want secure, repeatable
               env injection without sprinkling secrets across <code>.env</code> files, shell history, or CI logs.
             </p>
@@ -49,14 +49,17 @@
           </div>
 
           <div class="hero__code">
-            <pre><code># store secrets in Keychain (interactive hidden prompt)
-dotkc set vercel acme-app-dev CLERK_SECRET_KEY
+            <pre><code># initialize vault (creates iCloud Drive vault + local key file)
+dotkc vault init
+
+# store secrets in the vault (interactive hidden prompt)
+dotkc vault set vercel acme-app-dev CLERK_SECRET_KEY
 
 # inspect (redacted by default)
-dotkc run vercel:acme-app-dev
+dotkc vault run vercel:acme-app-dev
 
 # run your app with env injected
-dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
+dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
             <p class="micro">
               Inspect mode prints redacted values by default. Use <code>--unsafe-values</code> only on a trusted machine.
             </p>
@@ -66,7 +69,7 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
         <div class="container diagram" aria-label="OpenClaw secrets flow diagram">
           <div class="card__title">How secrets flow</div>
           <div class="diagram__svg">
-            <svg viewBox="0 0 900 240" role="img" aria-label="dotkc stores in Keychain, iCloud syncs, dotkc run injects env">
+            <svg viewBox="0 0 900 240" role="img" aria-label="dotkc encrypts a vault, iCloud Drive syncs, dotkc vault run injects env">
               <defs>
                 <linearGradient id="g" x1="0" x2="1">
                   <stop offset="0" stop-color="var(--accent)" />
@@ -82,12 +85,12 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
                 <circle cx="0" cy="9" r="3" fill="var(--text)" />
               </g>
               <text x="150" y="172" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">Store</text>
-              <text x="150" y="192" text-anchor="middle" font-size="13" fill="var(--muted)">OS Keychain</text>
+              <text x="150" y="192" text-anchor="middle" font-size="13" fill="var(--muted)">Vault file</text>
 
               <!-- arrow 1 -->
               <line x1="214" y1="95" x2="334" y2="95" stroke="url(#g)" stroke-width="1.5" stroke-dasharray="5 4" />
               <polygon points="332,89 344,95 332,101" fill="var(--accent2)" opacity="0.7" />
-              <text x="280" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">iCloud</text>
+              <text x="280" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">iCloud Drive</text>
 
               <!-- step 2: sync -->
               <circle cx="450" cy="95" r="50" fill="none" stroke="url(#g)" stroke-width="2" />
@@ -100,7 +103,7 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
               <!-- arrow 2 -->
               <line x1="514" y1="95" x2="634" y2="95" stroke="url(#g)" stroke-width="1.5" stroke-dasharray="5 4" />
               <polygon points="632,89 644,95 632,101" fill="var(--accent2)" opacity="0.7" />
-              <text x="580" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">dotkc run</text>
+              <text x="580" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">dotkc vault run</text>
 
               <!-- step 3: inject -->
               <circle cx="750" cy="95" r="50" fill="none" stroke="url(#g)" stroke-width="2" />
@@ -114,13 +117,13 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
 
               <!-- bottom note -->
               <text x="450" y="228" text-anchor="middle" font-size="12" fill="var(--muted)">
-                Secrets stay in Keychain. Never in repos, .env files, or chat.
+                Secrets stay encrypted in a vault. Never in repos, .env files, or chat.
               </text>
             </svg>
           </div>
           <div class="diagram__legend">
-            <div><span class="pill">Keychain</span> Durable secret storage</div>
-            <div><span class="pill">Sync</span> iCloud to your OpenClaw host</div>
+            <div><span class="pill">Vault</span> Encrypted secret storage (file)</div>
+            <div><span class="pill">Sync</span> iCloud Drive to your OpenClaw host</div>
             <div><span class="pill">Run</span> Inject env into tools</div>
           </div>
         </div>
@@ -141,17 +144,17 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
             <div class="card">
               <h3>The idea</h3>
               <ul>
-                <li>Store secrets once in Keychain.</li>
-                <li>Reference them by a stable name.</li>
+                <li>Encrypt secrets into a vault file.</li>
+                <li>Sync the vault via iCloud Drive.</li>
                 <li>Inject them into commands at runtime.</li>
               </ul>
             </div>
             <div class="card">
               <h3>Designed for OpenClaw</h3>
               <ul>
-                <li>Keychain is OS-native and works well with personal machines.</li>
-                <li>iCloud Keychain can sync to the Mac mini hosting OpenClaw.</li>
-                <li>Inspect mode helps you verify imported secrets quickly.</li>
+                <li>iCloud Drive sync is reliable and easy to reason about.</li>
+                <li>The vault is encrypted; iCloud only sees ciphertext.</li>
+                <li>A per-machine key file enables unattended OpenClaw runs.</li>
               </ul>
             </div>
           </div>
@@ -183,8 +186,8 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
             <div class="block">
               <h3>Two modes: run vs inspect</h3>
               <ul>
-                <li><strong>Run</strong>: <code>dotkc run &lt;spec&gt; -- &lt;cmd&gt;</code> injects env into the child process.</li>
-                <li><strong>Inspect</strong>: <code>dotkc run &lt;spec&gt;</code> prints redacted values so you can sanity check quickly.</li>
+                <li><strong>Run</strong>: <code>dotkc vault run &lt;spec&gt; -- &lt;cmd&gt;</code> injects env into the child process.</li>
+                <li><strong>Inspect</strong>: <code>dotkc vault run &lt;spec&gt;</code> prints redacted values so you can sanity check quickly.</li>
               </ul>
               <p class="micro">
                 Want full values? Use <code>--unsafe-values</code> (and accept the logging risk).
@@ -193,8 +196,8 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
           </div>
 
           <div class="callout">
-            <strong>OpenClaw pattern:</strong> manage secrets on your laptop &rarr; sync via iCloud Keychain &rarr; OpenClaw host uses
-            <code>dotkc run</code> to inject secrets into tools (Next.js, REST services, CLIs, etc.).
+            <strong>OpenClaw pattern:</strong> manage secrets on your laptop &rarr; sync an encrypted vault via iCloud Drive &rarr; OpenClaw host uses
+            <code>dotkc vault run</code> to inject secrets into tools (Next.js, REST services, CLIs, etc.).
           </div>
         </div>
       </section>
@@ -216,9 +219,9 @@ pnpm add -g dotkc</code></pre>
 
             <div class="step">
               <div class="step__body">
-                <h3>Initialize Keychain permission</h3>
-                <pre><code>dotkc init</code></pre>
-                <p>Run once to trigger macOS Keychain prompts.</p>
+                <h3>Initialize vault</h3>
+                <pre><code>dotkc vault init</code></pre>
+                <p>Creates the iCloud Drive vault (if missing) and a local key file (not synced).</p>
               </div>
             </div>
 
@@ -227,28 +230,28 @@ pnpm add -g dotkc</code></pre>
                 <h3>Import from .env</h3>
                 <pre><code>cd /path/to/your/project
 
-dotkc import vercel acme-app-dev .env</code></pre>
+dotkc vault import vercel acme-app-dev .env</code></pre>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
                 <h3>Inspect secrets (redacted)</h3>
-                <pre><code>dotkc run vercel:acme-app-dev
+                <pre><code>dotkc vault run vercel:acme-app-dev
 # or JSON
-# dotkc run --json vercel:acme-app-dev</code></pre>
+# dotkc vault run --json vercel:acme-app-dev</code></pre>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
                 <h3>Run your app with injected env</h3>
-                <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev
+                <pre><code>dotkc vault run vercel:acme-app-dev -- pnpm dev
 # Next.js build
-# dotkc run vercel:acme-app-dev -- pnpm build
+# dotkc vault run vercel:acme-app-dev -- pnpm build
 
 # exact (single key)
-dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
+dotkc vault run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
               </div>
             </div>
           </div>
@@ -257,12 +260,12 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
 
       <section class="section" id="keychain">
         <div class="container">
-          <h2>Why Keychain vs <code>.env</code>?</h2>
+          <h2>Why a vault vs <code>.env</code>?</h2>
           <div class="block" style="margin-top: 12px">
             <ul>
-              <li><strong>OS-native encryption + access control</strong> (you can review/deny access per app).</li>
+              <li><strong>Encrypted at rest</strong> (AES‑256‑GCM). The synced file is ciphertext.</li>
               <li><strong>Less accidental leakage</strong> (repos, zip files, backups, screenshots, shell history).</li>
-              <li><strong>Sync</strong> (iCloud Keychain) works well for personal laptop &harr; Mac mini setups.</li>
+              <li><strong>Sync</strong> via iCloud Drive works well for personal laptop &harr; Mac mini setups.</li>
               <li><strong>Better agent hygiene</strong>: OpenClaw can use secrets without you pasting them into chat.</li>
             </ul>
             <p class="micro">
@@ -287,21 +290,21 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
             <details>
               <summary>How do I print the full values?</summary>
               <p>
-                Use <code>dotkc run --unsafe-values &lt;spec&gt;</code>. dotkc will print a warning to stderr.
+                Use <code>dotkc vault run --unsafe-values &lt;spec&gt;</code>. dotkc will print a warning to stderr.
               </p>
             </details>
             <details>
               <summary>Does dotkc support Windows/Linux?</summary>
               <p>
-                It uses a Keychain backend via keytar bindings. Behavior depends on OS support. The main target is macOS + personal
-                machines (especially iCloud Keychain sync).
+                Vault backend is file-based (encrypted vault + local key file). It works well on macOS where iCloud Drive is available.
+                On other OSes, behavior depends on whether you can sync the vault file and protect the local key file.
               </p>
             </details>
             <details>
               <summary>What does dotkc store exactly?</summary>
               <p>
-                Secrets are stored as Keychain entries keyed by <code>service</code> and <code>category:KEY</code>. dotkc never stores
-                secrets in your git repo unless you explicitly put them there.
+                Secrets are stored in an encrypted vault file. dotkc never stores secrets in your git repo unless you explicitly put them there.
+                The per-machine local key file is required to decrypt the vault.
               </p>
             </details>
           </div>
@@ -316,17 +319,16 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
             <div class="block">
               <h3>CI note</h3>
               <p>
-                dotkc is published via GitHub Actions. The Keychain backend requires OS dependencies on Linux runners (e.g.
-                <code>libsecret</code>), so CI installs it during tests/publish.
+                dotkc is published via GitHub Actions. The vault backend is pure JS crypto, so it’s easy to test and run in CI.
+                (If/when dotkc also ships optional Keychain backends, CI may need extra OS packages.)
               </p>
             </div>
             <div class="block">
               <h3>pnpm note</h3>
               <p>
-                Because dotkc depends on a native module, pnpm may require approving build scripts in global installs.
-                If you hit a native addon error, run:
+                Vault backend is pure Node (no native addons), so global install should be straightforward.
               </p>
-              <pre><code>pnpm approve-builds -g</code></pre>
+              <pre><code>pnpm add -g dotkc</code></pre>
             </div>
           </div>
 
