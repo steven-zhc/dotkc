@@ -345,3 +345,18 @@ h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: -0.01em; }
   .diagram__legend { flex-direction: column; gap: 6px; }
   .step { grid-template-columns: 32px 1fr; gap: 12px; }
 }
+
+@media (max-width: 480px) {
+  .container { width: min(1060px, calc(100% - 28px)); }
+  .hero { padding: 56px 0 28px; }
+  .section { padding: 44px 0; }
+  h1 { font-size: 34px; }
+  pre code { font-size: 12px; }
+
+  /* Make long commands readable on narrow screens */
+  pre, .hero__code pre, .step__body pre, .block pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+}
