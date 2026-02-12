@@ -41,7 +41,7 @@ Usage:
   dotkc init [--vault <path>] [--key <path>]
   dotkc status [--vault <path>] [--key <path>]
 
-  dotkc key install <source-file|-> [--key <path>] [--force]
+  dotkc key install [--key <path>] [--force]
 
   dotkc set <service> <category> <KEY> [value|-]
   dotkc get <service> <category> <KEY>
@@ -73,9 +73,9 @@ Examples:
   dotkc init
   dotkc status
 
-  # machine B: install key (after scp) then check
-  dotkc key install /tmp/dotkc.key
-  dotkc status
+  # machine B: install key via stdin then check
+  cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
+  ssh user@machine-b 'dotkc status'
 
   dotkc set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
   dotkc import fly.io nextloom-ai-dev .env
@@ -316,13 +316,12 @@ if (cmd === 'key') {
   const sub = argv[1];
   const rest = argv.slice(2);
 
-  if (sub === 'install') {
-    const src = rest[0];
-    if (!src) usage(1);
+  if (!sub || sub === '-h' || sub === '--help') usage(sub ? 0 : 1);
 
+  if (sub === 'install') {
     let keyArg = null;
     let force = false;
-    for (let i = 1; i < rest.length; i++) {
+    for (let i = 0; i < rest.length; i++) {
       const a = rest[i];
       if (a === '--key') {
         keyArg = rest[++i] ?? null;
@@ -337,13 +336,18 @@ if (cmd === 'key') {
 
     const keyPath = expandHome(keyArg ?? process.env.DOTKC_VAULT_KEY_PATH ?? defaultVaultKeyPath());
 
-    const raw = src === '-' ? await readAllStdin() : fs.readFileSync(src, 'utf8');
+    if (process.stdin.isTTY) {
+      die('dotkc key install reads the key from stdin. Example: cat ~/.dotkc/key | dotkc key install', 2);
+    }
+
+    const raw = await readAllStdin();
     const key = parseVaultKeyString(raw);
     if (!key) die('Invalid key material. Expected base64-encoded 32-byte key.', 2);
 
     if (fs.existsSync(keyPath) && !force) {
-      const ok = await confirmPrompt(`Key already exists at ${keyPath}. Overwrite?`, { defaultNo: true });
-      if (!ok) die('Cancelled.', 1);
+      console.error(`Key already exists: ${keyPath}`);
+      console.error('Refusing to overwrite. Re-run with --force if you really want to replace it.');
+      process.exit(2);
     }
 
     fs.mkdirSync(path.dirname(keyPath), { recursive: true });

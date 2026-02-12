@@ -340,11 +340,10 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
                 If your OpenClaw host is a separate machine, copy the key file over (securely) and install it:
               </p>
               <pre><code># on machine A
-scp ~/.dotkc/key user@machine-b:/tmp/dotkc.key
+cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
 
-# on machine B
-dotkc key install /tmp/dotkc.key
-dotkc status</code></pre>
+# verify on machine B
+ssh user@machine-b 'dotkc status'</code></pre>
               <p class="micro">If you run <code>dotkc init</code> on machine B, it will create a NEW key that cannot decrypt an existing vault encrypted with a different key.</p>
             </div>
             <div class="block">

@@ -148,20 +148,18 @@ dotkc run fly.io:nextloom-ai-dev -- pnpm dev
 
 To decrypt the synced vault on machine B, you must copy the **key file** to B.
 
-### Option 1: scp + `dotkc key install` (recommended)
+### Option 1: pipe key over SSH + `dotkc key install` (recommended)
 
 On machine A:
 
 ```bash
-scp ~/.dotkc/key <user>@<machine-b>:/tmp/dotkc.key
+cat ~/.dotkc/key | ssh <user>@<machine-b> 'dotkc key install'
 ```
 
-On machine B:
+Then verify on machine B:
 
 ```bash
-dotkc key install /tmp/dotkc.key
-
-dotkc status
+ssh <user>@<machine-b> 'dotkc status'
 ```
 
 ### Option 2: initialize a brand new key on B (NOT shared)
