@@ -239,7 +239,7 @@ pnpm add -g dotkc</code></pre>
               <div class="step__body">
                 <h3>Initialize vault</h3>
                 <pre><code>dotkc init</code></pre>
-                <p>Creates the iCloud Drive vault (if missing) and a local key file (not synced).</p>
+                <p>Creates the iCloud Drive vault (if missing) and a local key file (not synced). If they already exist, dotkc will ask whether to overwrite.</p>
               </div>
             </div>
 
@@ -335,11 +335,17 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
 
           <div class="two" style="margin-top: 12px">
             <div class="block">
-              <h3>CI note</h3>
+              <h3>Machine B (SSH host) bootstrap</h3>
               <p>
-                dotkc is published via GitHub Actions. The vault backend is pure JS crypto, so it’s easy to test and run in CI.
-                (If/when dotkc also ships optional Keychain backends, CI may need extra OS packages.)
+                If your OpenClaw host is a separate machine, copy the key file over (securely) and install it:
               </p>
+              <pre><code># on machine A
+scp ~/.dotkc/key user@machine-b:/tmp/dotkc.key
+
+# on machine B
+dotkc key install /tmp/dotkc.key
+dotkc status</code></pre>
+              <p class="micro">If you run <code>dotkc init</code> on machine B, it will create a NEW key that cannot decrypt an existing vault encrypted with a different key.</p>
             </div>
             <div class="block">
               <h3>pnpm note</h3>

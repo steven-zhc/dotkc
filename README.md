@@ -97,8 +97,10 @@ dotkc init
 ```
 
 This will create:
+- key file (if missing) — **new key means new vault encryption**
 - vault file (if missing)
-- key file (if missing)
+
+If the key/vault already exist, dotkc will ask if you want to overwrite them.
 
 ### 2) Add secrets
 
@@ -144,20 +146,30 @@ dotkc run fly.io:nextloom-ai-dev -- pnpm dev
 
 ## Bootstrap a new machine (B)
 
-To decrypt the synced vault on machine B, you must copy the **key file** to B:
+To decrypt the synced vault on machine B, you must copy the **key file** to B.
 
-- Copy `~/.dotkc/key` from A → B (secure channel)
-- On B:
+### Option 1: scp + `dotkc key install` (recommended)
+
+On machine A:
 
 ```bash
-mkdir -p ~/.dotkc
-chmod 600 ~/.dotkc/key
+scp ~/.dotkc/key <user>@<machine-b>:/tmp/dotkc.key
 ```
 
-Then verify:
+On machine B:
 
 ```bash
+dotkc key install /tmp/dotkc.key
+
 dotkc status
+```
+
+### Option 2: initialize a brand new key on B (NOT shared)
+
+If you run init on B, it will create a **new key** (and an empty vault if missing). That key will not be able to decrypt an existing vault created with a different key.
+
+```bash
+dotkc init
 ```
 
 ---
@@ -166,6 +178,7 @@ dotkc status
 
 - `dotkc init [--vault <path>] [--key <path>]`
 - `dotkc status [--vault <path>] [--key <path>]`
+- `dotkc key install <source-file|-> [--key <path>] [--force]`
 - `dotkc set/get/del <service> <category> <KEY>`
 - `dotkc list <service> [category]`
 - `dotkc import <service> <category> [dotenv_file]`

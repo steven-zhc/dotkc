@@ -24,6 +24,7 @@ import {
   defaultVaultPath,
   ensureKeyFile,
   expandHome,
+  generateVaultKey,
   loadVault,
   readVaultKey,
   saveVault,
@@ -39,6 +40,8 @@ Usage:
 
   dotkc init [--vault <path>] [--key <path>]
   dotkc status [--vault <path>] [--key <path>]
+
+  dotkc key install <source-file|-> [--key <path>] [--force]
 
   dotkc set <service> <category> <KEY> [value|-]
   dotkc get <service> <category> <KEY>
@@ -70,6 +73,10 @@ Examples:
   dotkc init
   dotkc status
 
+  # machine B: install key (after scp) then check
+  dotkc key install /tmp/dotkc.key
+  dotkc status
+
   dotkc set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
   dotkc import fly.io nextloom-ai-dev .env
 
@@ -94,6 +101,20 @@ async function readAllStdin() {
   const chunks = [];
   for await (const c of process.stdin) chunks.push(c);
   return Buffer.concat(chunks).toString('utf8');
+}
+
+async function confirmPrompt(promptText, { defaultNo = true } = {}) {
+  if (!process.stdin.isTTY) return false;
+  return await new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    const suffix = defaultNo ? ' [y/N] ' : ' [Y/n] ';
+    rl.question(promptText + suffix, (ans) => {
+      rl.close();
+      const s = String(ans ?? '').trim().toLowerCase();
+      if (!s) return resolve(!defaultNo);
+      resolve(s === 'y' || s === 'yes');
+    });
+  });
 }
 
 function clearScreen() {
@@ -209,6 +230,14 @@ if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
 
 const cmd = argv[0];
 
+function parseVaultKeyString(s) {
+  const m = String(s ?? '').trim().match(/([A-Za-z0-9+/=]{40,})/);
+  if (!m) return null;
+  const b = Buffer.from(m[1], 'base64');
+  if (b.length !== 32) return null;
+  return b;
+}
+
 // Commands that operate on the encrypted vault
 const VAULT_COMMANDS = new Set(['init', 'status', 'set', 'get', 'del', 'list', 'import', 'run']);
 
@@ -218,17 +247,48 @@ function vaultPathsFromEnvOrArgs({ vaultArg, keyArg } = {}) {
   return { vaultPath, keyPath };
 }
 
-function ensureVaultReady({ vaultPath, keyPath }) {
-  const { key, created } = ensureKeyFile(keyPath);
-  if (created) {
-    console.error(`Created vault key: ${keyPath}`);
-    console.error('IMPORTANT: Copy this key file to any machine that should decrypt the vault (do NOT put it in iCloud Drive).');
+async function ensureVaultReady({ vaultPath, keyPath, allowOverwrite = false } = {}) {
+  const keyExists = fs.existsSync(keyPath);
+
+  let key;
+  if (!keyExists) {
+    const { key: k, created } = ensureKeyFile(keyPath);
+    key = k;
+    if (created) {
+      console.error(`Created NEW vault key: ${keyPath}`);
+      console.error('IMPORTANT: Copy this key file to any machine that should decrypt the vault (do NOT put it in iCloud Drive).');
+    }
+  } else {
+    key = readVaultKey(keyPath);
+    if (!key) die(`Vault key not found (or invalid): ${keyPath}`, 2);
+
+    if (allowOverwrite) {
+      const ok = await confirmPrompt(`Key already exists at ${keyPath}. Overwrite and create a NEW key? (This will break decryption of existing vaults)`, { defaultNo: true });
+      if (ok) {
+        const next = generateVaultKey();
+        fs.mkdirSync(path.dirname(keyPath), { recursive: true });
+        fs.writeFileSync(keyPath, Buffer.from(next.toString('base64') + '\n', 'utf8'), { mode: 0o600 });
+        fs.chmodSync(keyPath, 0o600);
+        key = next;
+        console.error(`Overwrote key: ${keyPath}`);
+      } else {
+        console.error('Keeping existing key.');
+      }
+    }
   }
 
+  const vaultExists = fs.existsSync(vaultPath);
   const { data, exists } = loadVault(vaultPath, key);
   if (!exists) {
     saveVault(vaultPath, key, {});
     console.error(`Created vault: ${vaultPath}`);
+  } else if (allowOverwrite && vaultExists) {
+    const ok = await confirmPrompt(`Vault already exists at ${vaultPath}. Overwrite and create an EMPTY vault? (This will delete all stored secrets)`, { defaultNo: true });
+    if (ok) {
+      saveVault(vaultPath, key, {});
+      console.error(`Overwrote vault (emptied): ${vaultPath}`);
+      return { key, data: {}, vaultPath, keyPath };
+    }
   }
 
   return { key, data, vaultPath, keyPath };
@@ -250,6 +310,51 @@ async function promptHidden(promptText) {
       resolve(answer);
     });
   });
+}
+
+if (cmd === 'key') {
+  const sub = argv[1];
+  const rest = argv.slice(2);
+
+  if (sub === 'install') {
+    const src = rest[0];
+    if (!src) usage(1);
+
+    let keyArg = null;
+    let force = false;
+    for (let i = 1; i < rest.length; i++) {
+      const a = rest[i];
+      if (a === '--key') {
+        keyArg = rest[++i] ?? null;
+        continue;
+      }
+      if (a === '--force') {
+        force = true;
+        continue;
+      }
+      die(`Unknown option: ${a}`, 2);
+    }
+
+    const keyPath = expandHome(keyArg ?? process.env.DOTKC_VAULT_KEY_PATH ?? defaultVaultKeyPath());
+
+    const raw = src === '-' ? await readAllStdin() : fs.readFileSync(src, 'utf8');
+    const key = parseVaultKeyString(raw);
+    if (!key) die('Invalid key material. Expected base64-encoded 32-byte key.', 2);
+
+    if (fs.existsSync(keyPath) && !force) {
+      const ok = await confirmPrompt(`Key already exists at ${keyPath}. Overwrite?`, { defaultNo: true });
+      if (!ok) die('Cancelled.', 1);
+    }
+
+    fs.mkdirSync(path.dirname(keyPath), { recursive: true });
+    fs.writeFileSync(keyPath, Buffer.from(key.toString('base64') + '\n', 'utf8'), { mode: 0o600 });
+    fs.chmodSync(keyPath, 0o600);
+
+    console.log('OK');
+    process.exit(0);
+  }
+
+  die(`Unknown key subcommand: ${sub}`, 2);
 }
 
 if (VAULT_COMMANDS.has(cmd)) {
@@ -276,7 +381,7 @@ if (VAULT_COMMANDS.has(cmd)) {
   const { vaultPath, keyPath } = vaultPathsFromEnvOrArgs({ vaultArg, keyArg });
 
   if (sub === 'init') {
-    ensureVaultReady({ vaultPath, keyPath });
+    await ensureVaultReady({ vaultPath, keyPath, allowOverwrite: true });
     console.log('OK');
     process.exit(0);
   }
@@ -318,7 +423,7 @@ if (VAULT_COMMANDS.has(cmd)) {
   // commands below require an existing key file
   const key = readVaultKey(keyPath);
   if (!key) {
-    die(`Vault key not found (or invalid): ${keyPath}\nRun: dotkc vault init`, 2);
+    die(`Vault key not found (or invalid): ${keyPath}\nRun: dotkc init`, 2);
   }
 
   const { data } = loadVault(vaultPath, key);
