@@ -77,15 +77,22 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
                 </linearGradient>
               </defs>
 
-              <!-- step 1: store -->
+              <!-- step 1: encrypt -->
               <circle cx="150" cy="95" r="50" fill="none" stroke="url(#g)" stroke-width="2" />
+              <!-- vault lock icon -->
               <g transform="translate(150,95)">
                 <rect x="-13" y="-2" width="26" height="20" rx="5" fill="none" stroke="var(--text)" stroke-width="1.8" />
                 <path d="M-7 -2v-7a7 7 0 0 1 14 0v7" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" />
                 <circle cx="0" cy="9" r="3" fill="var(--text)" />
               </g>
-              <text x="150" y="172" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">Store</text>
-              <text x="150" y="192" text-anchor="middle" font-size="13" fill="var(--muted)">Vault file</text>
+              <!-- local key file hint -->
+              <g transform="translate(150,95)">
+                <path d="M18 10 h14 a6 6 0 0 0 0-12 h-6" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round" />
+                <circle cx="14" cy="10" r="4" fill="none" stroke="var(--text)" stroke-width="1.6" />
+                <path d="M10 10 h-6" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round" />
+              </g>
+              <text x="150" y="172" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">Encrypt</text>
+              <text x="150" y="192" text-anchor="middle" font-size="13" fill="var(--muted)">vault + local key</text>
 
               <!-- arrow 1 -->
               <line x1="214" y1="95" x2="334" y2="95" stroke="url(#g)" stroke-width="1.5" stroke-dasharray="5 4" />
@@ -105,15 +112,19 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
               <polygon points="632,89 644,95 632,101" fill="var(--accent2)" opacity="0.7" />
               <text x="580" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">dotkc vault run</text>
 
-              <!-- step 3: inject -->
+              <!-- step 3: OpenClaw -->
               <circle cx="750" cy="95" r="50" fill="none" stroke="url(#g)" stroke-width="2" />
+              <!-- simple "server" icon -->
               <g transform="translate(750,95)">
-                <rect x="-16" y="-12" width="32" height="24" rx="4" fill="none" stroke="var(--text)" stroke-width="1.8" />
-                <polyline points="-9,-4 -3,2 -9,8" fill="none" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                <line x1="1" y1="7" x2="10" y2="7" stroke="var(--text)" stroke-width="1.8" stroke-linecap="round" />
+                <rect x="-16" y="-14" width="32" height="10" rx="3" fill="none" stroke="var(--text)" stroke-width="1.8" />
+                <rect x="-16" y="-2" width="32" height="10" rx="3" fill="none" stroke="var(--text)" stroke-width="1.8" />
+                <rect x="-16" y="10" width="32" height="10" rx="3" fill="none" stroke="var(--text)" stroke-width="1.8" />
+                <circle cx="10" cy="-9" r="1.5" fill="var(--text)" />
+                <circle cx="10" cy="3" r="1.5" fill="var(--text)" />
+                <circle cx="10" cy="15" r="1.5" fill="var(--text)" />
               </g>
-              <text x="750" y="172" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">Inject</text>
-              <text x="750" y="192" text-anchor="middle" font-size="13" fill="var(--muted)">env into process</text>
+              <text x="750" y="172" text-anchor="middle" font-size="15" font-weight="600" fill="var(--text)">OpenClaw</text>
+              <text x="750" y="192" text-anchor="middle" font-size="13" fill="var(--muted)">inject env</text>
 
               <!-- bottom note -->
               <text x="450" y="228" text-anchor="middle" font-size="12" fill="var(--muted)">
@@ -122,9 +133,9 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
             </svg>
           </div>
           <div class="diagram__legend">
-            <div><span class="pill">Vault</span> Encrypted secret storage (file)</div>
-            <div><span class="pill">Sync</span> iCloud Drive to your OpenClaw host</div>
-            <div><span class="pill">Run</span> Inject env into tools</div>
+            <div><span class="pill">Vault</span> Encrypted vault file (synced)</div>
+            <div><span class="pill">Key</span> Local key file (per-machine)</div>
+            <div><span class="pill">Run</span> OpenClaw uses vault to inject env</div>
           </div>
         </div>
       </section>
