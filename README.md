@@ -69,7 +69,7 @@ export DOTKC_VAULT_KEY_PATH="$HOME/.dotkc/key"
 
 A secret is identified by:
 - `service` — SaaS name (e.g. `fly.io`, `vercel`)
-- `category` — project/env/group (e.g. `nextloom-ai-dev`)
+- `category` — project/env/group (e.g. `acme-app-dev`)
 - `KEY` — env var name (e.g. `CLERK_PUBLISHABLE_KEY`)
 
 Stored inside the decrypted vault JSON as:
@@ -107,13 +107,13 @@ If the key/vault already exist, dotkc will ask if you want to overwrite them.
 Interactive (hidden prompt):
 
 ```bash
-dotkc set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
+dotkc set fly.io acme-app-dev CLERK_PUBLISHABLE_KEY
 ```
 
 Import from dotenv (interactive picker):
 
 ```bash
-dotkc import fly.io nextloom-ai-dev .env
+dotkc import fly.io acme-app-dev .env
 ```
 
 ### 3) Inspect (no command)
@@ -121,25 +121,25 @@ dotkc import fly.io nextloom-ai-dev .env
 Omit `-- <cmd>` to enter inspect mode (prints **redacted** values by default):
 
 ```bash
-dotkc run fly.io:nextloom-ai-dev
+dotkc run fly.io:acme-app-dev
 ```
 
 Unsafe (print full values):
 
 ```bash
-dotkc run --unsafe-values fly.io:nextloom-ai-dev
+dotkc run --unsafe-values fly.io:acme-app-dev
 ```
 
 JSON output:
 
 ```bash
-dotkc run --json fly.io:nextloom-ai-dev
+dotkc run --json fly.io:acme-app-dev
 ```
 
 ### 4) Run a command with secrets injected
 
 ```bash
-dotkc run fly.io:nextloom-ai-dev -- pnpm dev
+dotkc run fly.io:acme-app-dev -- pnpm dev
 ```
 
 ---

@@ -77,14 +77,14 @@ Examples:
   cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
   ssh user@machine-b 'dotkc status'
 
-  dotkc set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
-  dotkc import fly.io nextloom-ai-dev .env
+  dotkc set fly.io acme-app-dev CLERK_PUBLISHABLE_KEY
+  dotkc import fly.io acme-app-dev .env
 
-  dotkc run fly.io:nextloom-ai-dev
-  dotkc run --json fly.io:nextloom-ai-dev
-  dotkc run --unsafe-values fly.io:nextloom-ai-dev
+  dotkc run fly.io:acme-app-dev
+  dotkc run --json fly.io:acme-app-dev
+  dotkc run --unsafe-values fly.io:acme-app-dev
 
-  dotkc run fly.io:nextloom-ai-dev -- pnpm dev
+  dotkc run fly.io:acme-app-dev -- pnpm dev
 
 Vault backend notes:
 - Vault file defaults to iCloud Drive: ~/Library/Mobile Documents/com~apple~CloudDocs/dotkc/dotkc.vault
