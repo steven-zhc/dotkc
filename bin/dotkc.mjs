@@ -30,6 +30,11 @@ import {
   saveVault,
 } from './vault.mjs';
 
+function die(msg, code = 1) {
+  if (msg) console.error(String(msg));
+  process.exit(code);
+}
+
 function usage(code = 0) {
   const txt = `
 dotkc v${VERSION}
@@ -207,8 +212,8 @@ async function pickMany({ title, hint, items, initiallySelected = null }) {
 }
 
 function parseSpec(s) {
-  const parts = s.split(':');
-  if (parts.length < 2) throw new Error(`Invalid spec: ${s}`);
+  const parts = String(s ?? '').split(':');
+  if (parts.length < 2) return { kind: 'invalid', input: String(s ?? '') };
   if (parts.length === 2) {
     const [service, category] = parts;
     return { kind: 'wildcard', service, category };
@@ -430,7 +435,12 @@ if (VAULT_COMMANDS.has(cmd)) {
     die(`Vault key not found (or invalid): ${keyPath}\nRun: dotkc init`, 2);
   }
 
-  const { data } = loadVault(vaultPath, key);
+  let data;
+  try {
+    ({ data } = loadVault(vaultPath, key));
+  } catch (e) {
+    die(`Failed to decrypt vault: ${vaultPath}\n${e?.message ?? String(e)}`, 2);
+  }
 
   const save = (next) => saveVault(vaultPath, key, next);
 
@@ -600,6 +610,16 @@ if (VAULT_COMMANDS.has(cmd)) {
       .map(s => s.trim())
       .filter(Boolean)
       .map(parseSpec);
+
+    const invalid = specs.find(s => s.kind === 'invalid');
+    if (invalid) {
+      die(
+        `Invalid spec: ${invalid.input}\n` +
+          'Expected: <service>:<category> or <service>:<category>:<KEY>\n' +
+          'Example: dotkc run fly.io:acme-app-dev',
+        2,
+      );
+    }
 
     const env = { ...process.env };
 
