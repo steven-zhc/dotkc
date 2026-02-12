@@ -4,8 +4,8 @@
  *
  * Storage model (3 dimensions):
  *   service (SaaS) + category (project/env) + key (ENV name)
- * Stored in OS credential store under:
- *   (service, `${category}:${KEY}`)
+ * Stored in the encrypted vault as:
+ *   data[service][category][KEY] = value
  */
 
 import dotenv from 'dotenv';
@@ -13,6 +13,11 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+
+// Version is sourced from package.json (keeps CLI output in sync with npm package version)
+const PKG_PATH = new URL('../package.json', import.meta.url);
+const PKG = JSON.parse(fs.readFileSync(PKG_PATH, 'utf8'));
+const VERSION = PKG.version;
 
 import {
   defaultVaultKeyPath,
@@ -26,6 +31,8 @@ import {
 
 function usage(code = 0) {
   const txt = `
+dotkc v${VERSION}
+
 Usage:
   dotkc --version | -v
   dotkc --help | -h
@@ -196,10 +203,7 @@ if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') usage(argv.le
 
 // version flags
 if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
-  // read from package.json next to this file
-  const pkgPath = new URL('../package.json', import.meta.url);
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-  console.log(pkg.version);
+  console.log(VERSION);
   process.exit(0);
 }
 
@@ -335,7 +339,8 @@ if (cmd === 'vault') {
     if (!secret) die('Empty value; nothing stored.', 2);
 
     data[service] ??= {};
-    data[service][`${category}:${K}`] = secret;
+    data[service][category] ??= {};
+    data[service][category][K] = secret;
     save(data);
     console.log('OK');
     process.exit(0);
@@ -344,7 +349,7 @@ if (cmd === 'vault') {
   if (sub === 'get') {
     const [service, category, K] = args;
     if (!service || !category || !K) usage(1);
-    const v = data?.[service]?.[`${category}:${K}`];
+    const v = data?.[service]?.[category]?.[K];
     if (v == null) die('NOT_FOUND', 3);
     process.stdout.write(String(v));
     process.exit(0);
@@ -353,13 +358,16 @@ if (cmd === 'vault') {
   if (sub === 'del') {
     const [service, category, K] = args;
     if (!service || !category || !K) usage(1);
-    const acct = `${category}:${K}`;
-    const svc = data?.[service];
-    if (!svc || !(acct in svc)) {
+    const cat = data?.[service]?.[category];
+    if (!cat || !(K in cat)) {
       console.log('NOT_FOUND');
       process.exit(3);
     }
-    delete svc[acct];
+    delete cat[K];
+    if (Object.keys(cat).length === 0) {
+      delete data[service][category];
+      if (Object.keys(data[service]).length === 0) delete data[service];
+    }
     save(data);
     console.log('OK');
     process.exit(0);
@@ -370,20 +378,15 @@ if (cmd === 'vault') {
     if (!service) usage(1);
 
     const svc = data?.[service] ?? {};
-    const accounts = Object.keys(svc);
 
     if (!category) {
-      const cats = Array.from(new Set(accounts.map(a => a.split(':')[0]).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+      const cats = Object.keys(svc).sort((a, b) => a.localeCompare(b));
       for (const c of cats) console.log(c);
       process.exit(0);
     }
 
-    const prefix = `${category}:`;
-    const keys = accounts
-      .filter(a => a.startsWith(prefix))
-      .map(a => a.slice(prefix.length))
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
+    const cat = svc?.[category] ?? {};
+    const keys = Object.keys(cat).sort((a, b) => a.localeCompare(b));
     for (const k of keys) console.log(k);
     process.exit(0);
   }
@@ -413,11 +416,12 @@ if (cmd === 'vault') {
     if (picked.length === 0) die('Nothing selected.');
 
     data[service] ??= {};
+    data[service][category] ??= {};
     let written = 0;
     for (const k of picked) {
       const v = parsed[k];
       if (typeof v !== 'string') continue;
-      data[service][`${category}:${k}`] = v;
+      data[service][category][k] = v;
       written++;
     }
 
@@ -500,22 +504,18 @@ if (cmd === 'vault') {
 
     for (const sp of specs) {
       if (sp.kind === 'exact') {
-        const acct = `${sp.category}:${sp.key}`;
-        const v = data?.[sp.service]?.[acct];
+        const v = data?.[sp.service]?.[sp.category]?.[sp.key];
         if (v == null) die(`Missing secret: ${sp.service}:${sp.category}:${sp.key}`, 3);
         resolved[sp.key] = v;
         continue;
       }
 
-      const prefix = `${sp.category}:`;
-      const svc = data?.[sp.service] ?? {};
-      const matches = Object.keys(svc).filter(a => a.startsWith(prefix));
-      if (matches.length === 0) die(`No secrets matched: ${sp.service}:${sp.category}`, 3);
+      const cat = data?.[sp.service]?.[sp.category] ?? null;
+      if (!cat || Object.keys(cat).length === 0) die(`No secrets matched: ${sp.service}:${sp.category}`, 3);
 
-      for (const acct of matches) {
-        const k = acct.slice(prefix.length);
+      for (const [k, v] of Object.entries(cat)) {
         if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) continue;
-        resolved[k] = svc[acct];
+        resolved[k] = v;
       }
     }
 
