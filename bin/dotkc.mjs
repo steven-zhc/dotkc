@@ -420,8 +420,9 @@ if (VAULT_COMMANDS.has(cmd)) {
       try {
         loadVault(vaultPath, key);
         out.canDecrypt = true;
-      } catch {
+      } catch (e) {
         out.canDecrypt = false;
+        out.error = e?.message ?? String(e);
       }
     }
 
@@ -472,7 +473,7 @@ if (VAULT_COMMANDS.has(cmd)) {
     const [service, category, K] = args;
     if (!service || !category || !K) usage(1);
     const v = data?.[service]?.[category]?.[K];
-    if (v == null) die('NOT_FOUND', 3);
+    if (v == null) die(`NOT_FOUND: ${service}:${category}:${K}`, 3);
     process.stdout.write(String(v));
     process.exit(0);
   }
@@ -482,7 +483,7 @@ if (VAULT_COMMANDS.has(cmd)) {
     if (!service || !category || !K) usage(1);
     const cat = data?.[service]?.[category];
     if (!cat || !(K in cat)) {
-      console.log('NOT_FOUND');
+      console.error(`NOT_FOUND: ${service}:${category}:${K}`);
       process.exit(3);
     }
     delete cat[K];
