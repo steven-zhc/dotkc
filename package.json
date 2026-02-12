@@ -1,6 +1,6 @@
 {
   "name": "dotkc",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Encrypted vault (iCloud Drive) secrets + dotenv-style runner for OpenClaw/local-agent security",
   "type": "module",
   "license": "Apache-2.0",

@@ -1,13 +1,11 @@
-# dotkc (Vault backend)
+# dotkc
 
 [![npm version](https://img.shields.io/npm/v/dotkc.svg)](https://www.npmjs.com/package/dotkc)
 [![license](https://img.shields.io/npm/l/dotkc.svg)](./LICENSE)
 
 A secrets CLI + dotenv-style runner designed for OpenClaw/local-agent workflows.
 
-This branch documents the **Vault backend**: an encrypted vault file stored in iCloud Drive (synced) plus a **per-machine local key file** (not synced).
-
-> Looking for the Keychain backend docs? See the `main` branch.
+dotkc uses an **encrypted vault file** stored in iCloud Drive (synced) plus a **per-machine local key file** (not synced).
 
 ---
 
@@ -74,10 +72,17 @@ A secret is identified by:
 - `category` — project/env/group (e.g. `nextloom-ai-dev`)
 - `KEY` — env var name (e.g. `CLERK_PUBLISHABLE_KEY`)
 
-Stored inside the vault as:
-- `service` → `{ "<category>:<KEY>": "<value>" }`
+Stored inside the decrypted vault JSON as:
 
-Recommendation: keep `category` free of `:` (use `-` or `/`) so prefix matching is unambiguous.
+```json
+{
+  "<service>": {
+    "<category>": {
+      "<KEY>": "<value>"
+    }
+  }
+}
+```
 
 ---
 
@@ -88,7 +93,7 @@ Recommendation: keep `category` free of `:` (use `-` or `/`) so prefix matching 
 On your primary machine (A):
 
 ```bash
-dotkc vault init
+dotkc init
 ```
 
 This will create:
@@ -100,13 +105,13 @@ This will create:
 Interactive (hidden prompt):
 
 ```bash
-dotkc vault set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
+dotkc set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
 ```
 
 Import from dotenv (interactive picker):
 
 ```bash
-dotkc vault import fly.io nextloom-ai-dev .env
+dotkc import fly.io nextloom-ai-dev .env
 ```
 
 ### 3) Inspect (no command)
@@ -114,25 +119,25 @@ dotkc vault import fly.io nextloom-ai-dev .env
 Omit `-- <cmd>` to enter inspect mode (prints **redacted** values by default):
 
 ```bash
-dotkc vault run fly.io:nextloom-ai-dev
+dotkc run fly.io:nextloom-ai-dev
 ```
 
 Unsafe (print full values):
 
 ```bash
-dotkc vault run --unsafe-values fly.io:nextloom-ai-dev
+dotkc run --unsafe-values fly.io:nextloom-ai-dev
 ```
 
 JSON output:
 
 ```bash
-dotkc vault run --json fly.io:nextloom-ai-dev
+dotkc run --json fly.io:nextloom-ai-dev
 ```
 
 ### 4) Run a command with secrets injected
 
 ```bash
-dotkc vault run fly.io:nextloom-ai-dev -- pnpm dev
+dotkc run fly.io:nextloom-ai-dev -- pnpm dev
 ```
 
 ---
@@ -152,19 +157,19 @@ chmod 600 ~/.dotkc/key
 Then verify:
 
 ```bash
-dotkc vault status
+dotkc status
 ```
 
 ---
 
-## Commands (vault)
+## Commands
 
-- `dotkc vault init [--vault <path>] [--key <path>]`
-- `dotkc vault status [--vault <path>] [--key <path>]`
-- `dotkc vault set/get/del <service> <category> <KEY>`
-- `dotkc vault list <service> [category]`
-- `dotkc vault import <service> <category> [dotenv_file]`
-- `dotkc vault run [--json] [--unsafe-values] [dotenv options] <spec>[,<spec>...] [-- <cmd> ...]`
+- `dotkc init [--vault <path>] [--key <path>]`
+- `dotkc status [--vault <path>] [--key <path>]`
+- `dotkc set/get/del <service> <category> <KEY>`
+- `dotkc list <service> [category]`
+- `dotkc import <service> <category> [dotenv_file]`
+- `dotkc run [--json] [--unsafe-values] [dotenv options] <spec>[,<spec>...] [-- <cmd> ...]`
 
 `spec` formats:
 - wildcard: `<service>:<category>`

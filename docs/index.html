@@ -50,16 +50,16 @@
 
           <div class="hero__code">
             <pre><code># initialize vault (creates iCloud Drive vault + local key file)
-dotkc vault init
+dotkc init
 
 # store secrets in the vault (interactive hidden prompt)
-dotkc vault set vercel acme-app-dev CLERK_SECRET_KEY
+dotkc set vercel acme-app-dev CLERK_SECRET_KEY
 
 # inspect (redacted by default)
-dotkc vault run vercel:acme-app-dev
+dotkc run vercel:acme-app-dev
 
 # run your app with env injected
-dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
+dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
             <p class="micro">
               Inspect mode prints redacted values by default. Use <code>--unsafe-values</code> only on a trusted machine.
             </p>
@@ -69,7 +69,7 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
         <div class="container diagram" aria-label="OpenClaw secrets flow diagram">
           <div class="card__title">How secrets flow</div>
           <div class="diagram__svg">
-            <svg viewBox="0 0 900 240" role="img" aria-label="dotkc encrypts a vault, iCloud Drive syncs, dotkc vault run injects env">
+            <svg viewBox="0 0 900 240" role="img" aria-label="dotkc encrypts a vault, iCloud Drive syncs, dotkc run injects env">
               <defs>
                 <linearGradient id="g" x1="0" x2="1">
                   <stop offset="0" stop-color="var(--accent)" />
@@ -117,7 +117,7 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
               <!-- arrow 2 -->
               <line x1="514" y1="95" x2="634" y2="95" stroke="url(#g)" stroke-width="1.5" stroke-dasharray="5 4" />
               <polygon points="632,89 644,95 632,101" fill="var(--accent2)" opacity="0.7" />
-              <text x="580" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">dotkc vault run</text>
+              <text x="580" y="82" text-anchor="middle" font-size="12" fill="var(--muted)">dotkc run</text>
 
               <!-- step 3: OpenClaw -->
               <circle cx="750" cy="95" r="50" fill="none" stroke="url(#g)" stroke-width="2" />
@@ -191,8 +191,8 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
             <div class="block">
               <h3>Storage model</h3>
               <p>
-                Secrets are stored in the OS credential store under:
-                <span class="mono">(service, category:KEY)</span>
+                Secrets are stored in an encrypted vault file using:
+                <span class="mono">service + category + KEY</span>
               </p>
               <ul>
                 <li><strong>service</strong>: the SaaS or system (e.g. <code>vercel</code>, <code>github</code>)</li>
@@ -204,8 +204,8 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
             <div class="block">
               <h3>Two modes: run vs inspect</h3>
               <ul>
-                <li><strong>Run</strong>: <code>dotkc vault run &lt;spec&gt; -- &lt;cmd&gt;</code> injects env into the child process.</li>
-                <li><strong>Inspect</strong>: <code>dotkc vault run &lt;spec&gt;</code> prints redacted values so you can sanity check quickly.</li>
+                <li><strong>Run</strong>: <code>dotkc run &lt;spec&gt; -- &lt;cmd&gt;</code> injects env into the child process.</li>
+                <li><strong>Inspect</strong>: <code>dotkc run &lt;spec&gt;</code> prints redacted values so you can sanity check quickly.</li>
               </ul>
               <p class="micro">
                 Want full values? Use <code>--unsafe-values</code> (and accept the logging risk).
@@ -215,7 +215,7 @@ dotkc vault run vercel:acme-app-dev -- pnpm dev</code></pre>
 
           <div class="callout">
             <strong>OpenClaw pattern:</strong> manage secrets on your laptop &rarr; sync an encrypted vault via iCloud Drive &rarr; OpenClaw host uses
-            <code>dotkc vault run</code> to inject secrets into tools (Next.js, REST services, CLIs, etc.).
+            <code>dotkc run</code> to inject secrets into tools (Next.js, REST services, CLIs, etc.).
           </div>
         </div>
       </section>
@@ -238,7 +238,7 @@ pnpm add -g dotkc</code></pre>
             <div class="step">
               <div class="step__body">
                 <h3>Initialize vault</h3>
-                <pre><code>dotkc vault init</code></pre>
+                <pre><code>dotkc init</code></pre>
                 <p>Creates the iCloud Drive vault (if missing) and a local key file (not synced).</p>
               </div>
             </div>
@@ -248,28 +248,28 @@ pnpm add -g dotkc</code></pre>
                 <h3>Import from .env</h3>
                 <pre><code>cd /path/to/your/project
 
-dotkc vault import vercel acme-app-dev .env</code></pre>
+dotkc import vercel acme-app-dev .env</code></pre>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
                 <h3>Inspect secrets (redacted)</h3>
-                <pre><code>dotkc vault run vercel:acme-app-dev
+                <pre><code>dotkc run vercel:acme-app-dev
 # or JSON
-# dotkc vault run --json vercel:acme-app-dev</code></pre>
+# dotkc run --json vercel:acme-app-dev</code></pre>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
                 <h3>Run your app with injected env</h3>
-                <pre><code>dotkc vault run vercel:acme-app-dev -- pnpm dev
+                <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev
 # Next.js build
-# dotkc vault run vercel:acme-app-dev -- pnpm build
+# dotkc run vercel:acme-app-dev -- pnpm build
 
 # exact (single key)
-dotkc vault run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
+dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
               </div>
             </div>
           </div>
@@ -308,7 +308,7 @@ dotkc vault run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></p
             <details>
               <summary>How do I print the full values?</summary>
               <p>
-                Use <code>dotkc vault run --unsafe-values &lt;spec&gt;</code>. dotkc will print a warning to stderr.
+                Use <code>dotkc run --unsafe-values &lt;spec&gt;</code>. dotkc will print a warning to stderr.
               </p>
             </details>
             <details>

@@ -37,21 +37,21 @@ Usage:
   dotkc --version | -v
   dotkc --help | -h
 
-  dotkc vault init [--vault <path>] [--key <path>]
-  dotkc vault status [--vault <path>] [--key <path>]
+  dotkc init [--vault <path>] [--key <path>]
+  dotkc status [--vault <path>] [--key <path>]
 
-  dotkc vault set <service> <category> <KEY> [value|-]
-  dotkc vault get <service> <category> <KEY>
-  dotkc vault del <service> <category> <KEY>
+  dotkc set <service> <category> <KEY> [value|-]
+  dotkc get <service> <category> <KEY>
+  dotkc del <service> <category> <KEY>
 
-  dotkc vault list <service> [category]
-  dotkc vault import <service> <category> [dotenv_file]
+  dotkc list <service> [category]
+  dotkc import <service> <category> [dotenv_file]
 
   # Run a command with secrets injected:
   #  - exact: <service>:<category>:<KEY>
   #  - wildcard: <service>:<category>
-  dotkc vault run [options] <spec>[,<spec>...] -- <cmd> [args...]
-  dotkc vault run [options] <spec>[,<spec>...]
+  dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
+  dotkc run [options] <spec>[,<spec>...]
 
 Vault options:
   --vault <path>          Vault file path (default: DOTKC_VAULT_PATH or iCloud Drive default)
@@ -67,17 +67,17 @@ Run options (vault):
   --dotenv-override       Allow dotenv to override existing process.env
 
 Examples:
-  dotkc vault init
-  dotkc vault status
+  dotkc init
+  dotkc status
 
-  dotkc vault set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
-  dotkc vault import fly.io nextloom-ai-dev .env
+  dotkc set fly.io nextloom-ai-dev CLERK_PUBLISHABLE_KEY
+  dotkc import fly.io nextloom-ai-dev .env
 
-  dotkc vault run fly.io:nextloom-ai-dev
-  dotkc vault run --json fly.io:nextloom-ai-dev
-  dotkc vault run --unsafe-values fly.io:nextloom-ai-dev
+  dotkc run fly.io:nextloom-ai-dev
+  dotkc run --json fly.io:nextloom-ai-dev
+  dotkc run --unsafe-values fly.io:nextloom-ai-dev
 
-  dotkc vault run fly.io:nextloom-ai-dev -- pnpm dev
+  dotkc run fly.io:nextloom-ai-dev -- pnpm dev
 
 Vault backend notes:
 - Vault file defaults to iCloud Drive: ~/Library/Mobile Documents/com~apple~CloudDocs/dotkc/dotkc.vault
@@ -209,6 +209,9 @@ if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
 
 const cmd = argv[0];
 
+// Commands that operate on the encrypted vault
+const VAULT_COMMANDS = new Set(['init', 'status', 'set', 'get', 'del', 'list', 'import', 'run']);
+
 function vaultPathsFromEnvOrArgs({ vaultArg, keyArg } = {}) {
   const vaultPath = expandHome(vaultArg ?? process.env.DOTKC_VAULT_PATH ?? defaultVaultPath());
   const keyPath = expandHome(keyArg ?? process.env.DOTKC_VAULT_KEY_PATH ?? defaultVaultKeyPath());
@@ -249,9 +252,9 @@ async function promptHidden(promptText) {
   });
 }
 
-if (cmd === 'vault') {
-  const sub = argv[1];
-  const rest = argv.slice(2);
+if (VAULT_COMMANDS.has(cmd)) {
+  const sub = cmd;
+  const rest = argv.slice(1);
 
   // parse vault-specific global options
   let vaultArg = null;
@@ -566,9 +569,9 @@ if (cmd === 'vault') {
     process.exit(0);
   }
 
-  die(`Unknown vault subcommand: ${sub}`, 2);
+  die(`Unknown command: ${sub}`, 2);
 }
 
 
-// Vault-only branch: Keychain backend removed.
+// Vault-only CLI.
 usage(1);
