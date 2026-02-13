@@ -25,6 +25,16 @@ Any machine that has both files can decrypt and inject secrets.
 
 ## Security & threat model (read first)
 
+## Safety: automatic vault backups
+
+Before overwriting the vault file, dotkc automatically creates a backup next to it:
+
+- `dotkc.vault.bak-<timestamp>`
+- keeps the most recent **3** backups
+
+If backup creation fails, dotkc refuses to write the new vault (safer by default).
+
+
 - The vault file is encrypted with **AES-256-GCM**.
 - The key file is a random 32-byte key stored locally.
 - If an attacker gets **both** the vault file and the key file, they can decrypt.
@@ -176,7 +186,7 @@ dotkc init
 
 - `dotkc init [--vault <path>] [--key <path>]`
 - `dotkc status [--vault <path>] [--key <path>]`
-- `dotkc key install <source-file|-> [--key <path>] [--force]`
+- `dotkc key install [--key <path>] [--force]`
 - `dotkc set/get/del <service> <category> <KEY>`
 - `dotkc list <service> [category]`
 - `dotkc import <service> <category> [dotenv_file]`

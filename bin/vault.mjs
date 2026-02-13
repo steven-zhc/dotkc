@@ -86,7 +86,57 @@ export function loadVault(vaultPath, key) {
   return { data: decryptVaultJson(key, vo), exists: true };
 }
 
+function timestampId() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}${ms}`;
+}
+
+function listBackups(vaultPath) {
+  const dir = path.dirname(vaultPath);
+  const base = path.basename(vaultPath);
+  try {
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith(`${base}.bak-`))
+      .map((f) => path.join(dir, f))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function pruneBackups(vaultPath, keep = 3) {
+  const backups = listBackups(vaultPath);
+  const extra = backups.length - keep;
+  if (extra <= 0) return;
+  for (const fp of backups.slice(0, extra)) {
+    try {
+      fs.unlinkSync(fp);
+    } catch {
+      // best-effort
+    }
+  }
+}
+
+function backupExistingVaultOrThrow(vaultPath, keep = 3) {
+  if (!fs.existsSync(vaultPath)) return;
+  const st = fs.statSync(vaultPath);
+  if (!st.isFile() || st.size === 0) return;
+
+  const backupPath = `${vaultPath}.bak-${timestampId()}`;
+  ensureDirForFile(backupPath);
+  fs.copyFileSync(vaultPath, backupPath);
+  fs.chmodSync(backupPath, 0o600);
+  pruneBackups(vaultPath, keep);
+}
+
 export function saveVault(vaultPath, key, data) {
+  // P0 safety: always back up the existing vault before overwriting.
+  // If backup fails, throw (caller should refuse to write).
+  backupExistingVaultOrThrow(vaultPath, 3);
+
   const vo = encryptVaultJson(key, data);
   atomicWriteFile(vaultPath, Buffer.from(JSON.stringify(vo, null, 2) + '\n', 'utf8'), 0o600);
 }

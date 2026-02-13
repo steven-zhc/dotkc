@@ -319,6 +319,14 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
               </p>
             </details>
             <details>
+              <summary>Does dotkc create backups?</summary>
+              <p>
+                Yes. Before overwriting the vault file, dotkc creates a backup next to it (e.g.
+                <code>dotkc.vault.bak-20260213-165627415</code>) and keeps the most recent <strong>3</strong> backups.
+                If the backup fails, dotkc refuses to write the new vault.
+              </p>
+            </details>
+            <details>
               <summary>What does dotkc store exactly?</summary>
               <p>
                 Secrets are stored in an encrypted vault file. dotkc never stores secrets in your git repo unless you explicitly put them there.
