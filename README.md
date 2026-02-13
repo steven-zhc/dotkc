@@ -27,10 +27,17 @@ Any machine that has both files can decrypt and inject secrets.
 
 ## Safety: automatic vault backups
 
-Before overwriting the vault file, dotkc automatically creates a backup next to it:
+Before overwriting the vault file, dotkc automatically creates a backup:
 
-- `dotkc.vault.bak-<timestamp>`
+- default location: next to the vault file
+- filename: `dotkc.vault.bak-<timestamp>`
 - keeps the most recent **3** backups
+
+Configuration:
+
+- `DOTKC_BACKUP_KEEP=0` disables backups
+- `DOTKC_BACKUP_KEEP=3` keeps the last 3 backups (default)
+- `DOTKC_BACKUP_DIR=/path/to/dir` stores backups in a separate directory
 
 If backup creation fails, dotkc refuses to write the new vault (safer by default).
 

@@ -321,8 +321,9 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
             <details>
               <summary>Does dotkc create backups?</summary>
               <p>
-                Yes. Before overwriting the vault file, dotkc creates a backup next to it (e.g.
+                Yes. Before overwriting the vault file, dotkc creates a backup (e.g.
                 <code>dotkc.vault.bak-20260213-165627415</code>) and keeps the most recent <strong>3</strong> backups.
+                You can configure this with <code>DOTKC_BACKUP_KEEP</code> (set <code>0</code> to disable) and <code>DOTKC_BACKUP_DIR</code>.
                 If the backup fails, dotkc refuses to write the new vault.
               </p>
             </details>

@@ -93,8 +93,22 @@ function timestampId() {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}${ms}`;
 }
 
+function getBackupKeep() {
+  const v = process.env.DOTKC_BACKUP_KEEP;
+  if (!v) return 3;
+  const n = Number.parseInt(String(v), 10);
+  if (!Number.isFinite(n) || n < 0) return 3;
+  return n;
+}
+
+function getBackupDir(vaultPath) {
+  const d = process.env.DOTKC_BACKUP_DIR;
+  if (!d) return path.dirname(vaultPath);
+  return d;
+}
+
 function listBackups(vaultPath) {
-  const dir = path.dirname(vaultPath);
+  const dir = getBackupDir(vaultPath);
   const base = path.basename(vaultPath);
   try {
     return fs
@@ -107,7 +121,7 @@ function listBackups(vaultPath) {
   }
 }
 
-function pruneBackups(vaultPath, keep = 3) {
+function pruneBackups(vaultPath, keep) {
   const backups = listBackups(vaultPath);
   const extra = backups.length - keep;
   if (extra <= 0) return;
@@ -120,12 +134,18 @@ function pruneBackups(vaultPath, keep = 3) {
   }
 }
 
-function backupExistingVaultOrThrow(vaultPath, keep = 3) {
+function backupExistingVaultOrThrow(vaultPath) {
+  const keep = getBackupKeep();
+  if (keep === 0) return;
+
   if (!fs.existsSync(vaultPath)) return;
   const st = fs.statSync(vaultPath);
   if (!st.isFile() || st.size === 0) return;
 
-  const backupPath = `${vaultPath}.bak-${timestampId()}`;
+  const dir = getBackupDir(vaultPath);
+  const base = path.basename(vaultPath);
+  const backupPath = path.join(dir, `${base}.bak-${timestampId()}`);
+
   ensureDirForFile(backupPath);
   fs.copyFileSync(vaultPath, backupPath);
   fs.chmodSync(backupPath, 0o600);
@@ -135,7 +155,7 @@ function backupExistingVaultOrThrow(vaultPath, keep = 3) {
 export function saveVault(vaultPath, key, data) {
   // P0 safety: always back up the existing vault before overwriting.
   // If backup fails, throw (caller should refuse to write).
-  backupExistingVaultOrThrow(vaultPath, 3);
+  backupExistingVaultOrThrow(vaultPath);
 
   const vo = encryptVaultJson(key, data);
   atomicWriteFile(vaultPath, Buffer.from(JSON.stringify(vo, null, 2) + '\n', 'utf8'), 0o600);
