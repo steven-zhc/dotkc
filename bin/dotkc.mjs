@@ -46,6 +46,7 @@ Usage:
 
   dotkc init [--vault <path>] [--key <path>]
   dotkc status [--vault <path>] [--key <path>]
+  dotkc doctor [--vault <path>] [--key <path>] [--json]
 
   dotkc key install [--key <path>] [--force]
 
@@ -78,6 +79,7 @@ Run options (vault):
 Examples:
   dotkc init
   dotkc status
+  dotkc doctor
 
   # machine B: install key via stdin then check
   cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
@@ -245,7 +247,7 @@ function parseVaultKeyString(s) {
 }
 
 // Commands that operate on the encrypted vault
-const VAULT_COMMANDS = new Set(['init', 'status', 'set', 'get', 'del', 'list', 'import', 'run']);
+const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'import', 'run']);
 
 function vaultPathsFromEnvOrArgs({ vaultArg, keyArg } = {}) {
   const vaultPath = expandHome(vaultArg ?? process.env.DOTKC_VAULT_PATH ?? defaultVaultPath());
@@ -429,6 +431,101 @@ if (VAULT_COMMANDS.has(cmd)) {
 
     process.stdout.write(JSON.stringify(out, null, 2) + '\n');
     process.exit(out.canDecrypt ? 0 : 2);
+  }
+
+  if (sub === 'doctor') {
+    const jsonOut = args.includes('--json');
+
+    const res = {
+      ok: true,
+      vaultPath,
+      keyPath,
+      checks: [],
+      hints: [],
+    };
+
+    const add = (name, ok, details = null, fix = null) => {
+      res.checks.push({ name, ok, details, fix });
+      if (!ok) res.ok = false;
+    };
+
+    // key checks
+    const keyExists = fs.existsSync(keyPath);
+    add('key.exists', keyExists, keyExists ? null : 'Key file missing');
+
+    if (keyExists) {
+      try {
+        const st = fs.statSync(keyPath);
+        const mode = st.mode & 0o777;
+        const okMode = mode === 0o600;
+        add('key.permissions', okMode, { mode: `0${mode.toString(8)}` }, okMode ? null : `chmod 600 "${keyPath}"`);
+      } catch (e) {
+        add('key.permissions', false, e?.message ?? String(e));
+      }
+
+      const key = readVaultKey(keyPath);
+      add('key.format', Boolean(key), key ? null : 'Invalid key (expected base64 32-byte key)');
+    }
+
+    // vault checks
+    const vaultExists = fs.existsSync(vaultPath);
+    add('vault.exists', vaultExists, vaultExists ? null : 'Vault file missing');
+
+    if (vaultExists) {
+      try {
+        const st = fs.statSync(vaultPath);
+        const mode = st.mode & 0o777;
+        add('vault.permissions', mode === 0o600, { mode: `0${mode.toString(8)}` }, mode === 0o600 ? null : `chmod 600 "${vaultPath}"`);
+        add('vault.size', st.size > 0, { bytes: st.size }, st.size > 0 ? null : 'Vault is empty');
+      } catch (e) {
+        add('vault.stat', false, e?.message ?? String(e));
+      }
+    }
+
+    // decrypt check
+    const key = readVaultKey(keyPath);
+    if (key && vaultExists) {
+      try {
+        loadVault(vaultPath, key);
+        add('vault.decrypt', true);
+      } catch (e) {
+        add('vault.decrypt', false, e?.message ?? String(e), 'Ensure this machine has the correct ~/.dotkc/key for this vault');
+      }
+    }
+
+    // backup hints
+    const keep = process.env.DOTKC_BACKUP_KEEP ?? '3';
+    const bdir = process.env.DOTKC_BACKUP_DIR ?? '(same dir as vault)';
+    res.hints.push({ name: 'backup.config', details: { DOTKC_BACKUP_KEEP: keep, DOTKC_BACKUP_DIR: bdir } });
+
+    // iCloud hint
+    if (vaultPath.includes('Library/Mobile Documents/com~apple~CloudDocs')) {
+      res.hints.push({
+        name: 'icloud',
+        details: 'Vault is under iCloud Drive. Ensure iCloud Drive is enabled and fully synced on this machine.',
+      });
+    }
+
+    if (jsonOut) {
+      process.stdout.write(JSON.stringify(res, null, 2) + '\n');
+      process.exit(res.ok ? 0 : 2);
+    }
+
+    // human output
+    const fmt = (b) => (b ? 'OK' : 'FAIL');
+    console.error(`dotkc doctor`);
+    console.error(`vault: ${vaultPath}`);
+    console.error(`key:   ${keyPath}`);
+    console.error('---');
+    for (const c of res.checks) {
+      console.error(`${fmt(c.ok)}  ${c.name}${c.details ? `  ${typeof c.details === 'string' ? c.details : JSON.stringify(c.details)}` : ''}`);
+      if (!c.ok && c.fix) console.error(`      fix: ${c.fix}`);
+    }
+    for (const h of res.hints) {
+      console.error(`hint  ${h.name}: ${typeof h.details === 'string' ? h.details : JSON.stringify(h.details)}`);
+    }
+
+    process.exit(res.ok ? 0 : 2);
   }
 
   // commands below require an existing key file

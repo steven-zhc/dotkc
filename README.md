@@ -71,6 +71,14 @@ dotkc status [--vault <path>] [--key <path>]
 
 Prints JSON describing paths + whether the vault can be decrypted.
 
+### `dotkc doctor`
+
+```bash
+dotkc doctor [--vault <path>] [--key <path>] [--json]
+```
+
+Runs diagnostics for common issues (missing key/vault, wrong permissions, decrypt failures) and prints suggested fixes.
+
 ### `dotkc key install`
 
 ```bash

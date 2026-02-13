@@ -352,7 +352,10 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
 cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
 
 # verify on machine B
-ssh user@machine-b 'dotkc status'</code></pre>
+ssh user@machine-b 'dotkc status'
+
+# if something is wrong
+ssh user@machine-b 'dotkc doctor'</code></pre>
               <p class="micro">If you run <code>dotkc init</code> on machine B, it will create a NEW key that cannot decrypt an existing vault encrypted with a different key.</p>
             </div>
             <div class="block">
