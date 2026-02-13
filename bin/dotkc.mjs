@@ -55,6 +55,7 @@ Usage:
   dotkc del <service> <category> <KEY>
 
   dotkc list <service> [category]
+  dotkc search <query> [--json]
   dotkc import <service> <category> [dotenv_file]
 
   # Run a command with secrets injected:
@@ -247,7 +248,7 @@ function parseVaultKeyString(s) {
 }
 
 // Commands that operate on the encrypted vault
-const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'import', 'run']);
+const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'search', 'import', 'run']);
 
 function vaultPathsFromEnvOrArgs({ vaultArg, keyArg } = {}) {
   const vaultPath = expandHome(vaultArg ?? process.env.DOTKC_VAULT_PATH ?? defaultVaultPath());
@@ -619,6 +620,39 @@ if (VAULT_COMMANDS.has(cmd)) {
     const cat = svc?.[category] ?? {};
     const keys = Object.keys(cat).sort((a, b) => a.localeCompare(b));
     for (const k of keys) console.log(k);
+    process.exit(0);
+  }
+
+  if (sub === 'search') {
+    const q = args.find(a => !a.startsWith('-'));
+    const jsonOut = args.includes('--json');
+    if (!q) usage(1);
+
+    const needle = String(q).toLowerCase();
+    const matches = [];
+
+    for (const [service, cats] of Object.entries(data ?? {})) {
+      if (!cats || typeof cats !== 'object') continue;
+      for (const [category, kv] of Object.entries(cats ?? {})) {
+        if (!kv || typeof kv !== 'object') continue;
+        for (const keyName of Object.keys(kv)) {
+          const hay = `${service} ${category} ${keyName}`.toLowerCase();
+          if (!hay.includes(needle)) continue;
+          matches.push({ service, category, key: keyName });
+        }
+      }
+    }
+
+    matches.sort((a, b) =>
+      `${a.service}:${a.category}:${a.key}`.localeCompare(`${b.service}:${b.category}:${b.key}`),
+    );
+
+    if (jsonOut) {
+      process.stdout.write(JSON.stringify(matches, null, 2) + '\n');
+      process.exit(0);
+    }
+
+    for (const m of matches) console.log(`${m.service} ${m.category} ${m.key}`);
     process.exit(0);
   }
 

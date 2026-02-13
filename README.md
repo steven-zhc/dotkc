@@ -122,6 +122,14 @@ dotkc list <service> [category]
 - If `category` omitted: prints categories
 - If `category` provided: prints keys
 
+### `dotkc search`
+
+```bash
+dotkc search <query> [--json]
+```
+
+Search keys by substring across `service/category/KEY`. Never prints secret values.
+
 ### `dotkc import`
 
 ```bash
