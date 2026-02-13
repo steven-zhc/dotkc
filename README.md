@@ -3,50 +3,12 @@
 [![npm version](https://img.shields.io/npm/v/dotkc.svg)](https://www.npmjs.com/package/dotkc)
 [![license](https://img.shields.io/npm/l/dotkc.svg)](./LICENSE)
 
-A secrets CLI + dotenv-style runner designed for OpenClaw/local-agent workflows.
+`dotkc` is a small secrets CLI + dotenv-style runner for OpenClaw/local-agent workflows.
 
-dotkc uses an **encrypted vault file** stored in iCloud Drive (synced) plus a **per-machine local key file** (not synced).
+- Encrypted vault file (typically iCloud Drive synced)
+- Per-machine local key file (NOT synced)
 
----
-
-## What problem does this solve?
-
-- You want secrets available on multiple Macs (MacBook → Mac mini hosting OpenClaw)
-- You want the secrets **synced reliably** (file sync is simpler than Keychain enumeration across machines)
-- You want secrets **encrypted at rest** and never committed to git or pasted into chats
-
-**Model:**
-- iCloud Drive stores only encrypted data (`dotkc.vault`)
-- Each machine stores a local decryption key (`~/.dotkc/key`)
-
-Any machine that has both files can decrypt and inject secrets.
-
----
-
-## Security & threat model (read first)
-
-## Safety: automatic vault backups
-
-Before overwriting the vault file, dotkc automatically creates a backup:
-
-- default location: next to the vault file
-- filename: `dotkc.vault.bak-<timestamp>`
-- keeps the most recent **3** backups
-
-Configuration:
-
-- `DOTKC_BACKUP_KEEP=0` disables backups
-- `DOTKC_BACKUP_KEEP=3` keeps the last 3 backups (default)
-- `DOTKC_BACKUP_DIR=/path/to/dir` stores backups in a separate directory
-
-If backup creation fails, dotkc refuses to write the new vault (safer by default).
-
-
-- The vault file is encrypted with **AES-256-GCM**.
-- The key file is a random 32-byte key stored locally.
-- If an attacker gets **both** the vault file and the key file, they can decrypt.
-- Do **not** store the key file in iCloud Drive.
-- Avoid printing env vars in logs.
+Usage manual + best practices: **https://dotkc.hczhang.com/**
 
 ---
 
@@ -54,154 +16,137 @@ If backup creation fails, dotkc refuses to write the new vault (safer by default
 
 ```bash
 npm i -g dotkc
-```
-
-### pnpm note
-
-Vault backend is pure Node (no native addons), so `pnpm approve-builds -g` should **not** be needed.
-
-```bash
+# or
 pnpm add -g dotkc
 ```
 
 ---
 
-## Vault locations (defaults)
+## Paths & environment variables
 
-- Vault file (synced):
-  - `~/Library/Mobile Documents/com~apple~CloudDocs/dotkc/dotkc.vault`
-- Key file (per-machine, NOT synced):
-  - `~/.dotkc/key` (chmod 600)
+### Vault / key locations
 
-Overrides:
+Defaults:
+
+- `DOTKC_VAULT_PATH` → `~/Library/Mobile Documents/com~apple~CloudDocs/dotkc/dotkc.vault`
+- `DOTKC_VAULT_KEY_PATH` → `~/.dotkc/key`
+
+Override:
 
 ```bash
 export DOTKC_VAULT_PATH="/path/to/dotkc.vault"
 export DOTKC_VAULT_KEY_PATH="$HOME/.dotkc/key"
 ```
 
----
+### Backup settings (P0 safety)
 
-## Data model
+Before overwriting the vault, dotkc creates a backup and refuses to write if backup fails.
 
-A secret is identified by:
-- `service` — SaaS name (e.g. `fly.io`, `vercel`)
-- `category` — project/env/group (e.g. `acme-app-dev`)
-- `KEY` — env var name (e.g. `CLERK_PUBLISHABLE_KEY`)
+- `DOTKC_BACKUP_KEEP=3` keep last 3 backups (default)
+- `DOTKC_BACKUP_KEEP=0` disable backups
+- `DOTKC_BACKUP_DIR=/path/to/dir` store backups in a separate directory
 
-Stored inside the decrypted vault JSON as:
+Backup filenames look like:
 
-```json
-{
-  "<service>": {
-    "<category>": {
-      "<KEY>": "<value>"
-    }
-  }
-}
-```
+- `dotkc.vault.bak-YYYYMMDD-HHMMSSmmm`
 
 ---
 
-## Quickstart
+## Command reference
 
-### 1) Initialize vault + key
-
-On your primary machine (A):
+### `dotkc init`
 
 ```bash
-dotkc init
+dotkc init [--vault <path>] [--key <path>]
 ```
 
-This will create:
-- key file (if missing) — **new key means new vault encryption**
-- vault file (if missing)
+Creates the vault (if missing) and the local key file (if missing). If they already exist, dotkc may prompt before overwriting.
 
-If the key/vault already exist, dotkc will ask if you want to overwrite them.
-
-### 2) Add secrets
-
-Interactive (hidden prompt):
+### `dotkc status`
 
 ```bash
-dotkc set fly.io acme-app-dev CLERK_PUBLISHABLE_KEY
+dotkc status [--vault <path>] [--key <path>]
 ```
 
-Import from dotenv (interactive picker):
+Prints JSON describing paths + whether the vault can be decrypted.
+
+### `dotkc key install`
 
 ```bash
-dotkc import fly.io acme-app-dev .env
+# reads key from stdin
+cat ~/.dotkc/key | dotkc key install [--key <path>] [--force]
 ```
 
-### 3) Inspect (no command)
+Installs a key file (chmod 600). Refuses to overwrite an existing key unless `--force`.
 
-Omit `-- <cmd>` to enter inspect mode (prints **redacted** values by default):
+### `dotkc set`
 
 ```bash
-dotkc run fly.io:acme-app-dev
+dotkc set <service> <category> <KEY> [value|-]
 ```
 
-Unsafe (print full values):
+- Omitting `value` prompts (hidden input)
+- `value=-` reads from stdin (non-interactive)
+
+### `dotkc get`
 
 ```bash
-dotkc run --unsafe-values fly.io:acme-app-dev
+dotkc get <service> <category> <KEY>
 ```
 
-JSON output:
+Prints the secret to stdout.
+
+### `dotkc del`
 
 ```bash
-dotkc run --json fly.io:acme-app-dev
+dotkc del <service> <category> <KEY>
 ```
 
-### 4) Run a command with secrets injected
+Deletes the secret.
+
+### `dotkc list`
 
 ```bash
-dotkc run fly.io:acme-app-dev -- pnpm dev
+dotkc list <service> [category]
 ```
 
----
+- If `category` omitted: prints categories
+- If `category` provided: prints keys
 
-## Bootstrap a new machine (B)
-
-To decrypt the synced vault on machine B, you must copy the **key file** to B.
-
-### Option 1: pipe key over SSH + `dotkc key install` (recommended)
-
-On machine A:
+### `dotkc import`
 
 ```bash
-cat ~/.dotkc/key | ssh <user>@<machine-b> 'dotkc key install'
+dotkc import <service> <category> [dotenv_file]
 ```
 
-Then verify on machine B:
+Interactive picker to import keys from a dotenv file (default: `.env`).
+
+### `dotkc run`
 
 ```bash
-ssh <user>@<machine-b> 'dotkc status'
+# inspect mode (no command): prints redacted values by default
+dotkc run [options] <spec>[,<spec>...]
+
+# exec mode: inject env and run a command
+dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
 ```
 
-### Option 2: initialize a brand new key on B (NOT shared)
+Spec formats:
 
-If you run init on B, it will create a **new key** (and an empty vault if missing). That key will not be able to decrypt an existing vault created with a different key.
-
-```bash
-dotkc init
-```
-
----
-
-## Commands
-
-- `dotkc init [--vault <path>] [--key <path>]`
-- `dotkc status [--vault <path>] [--key <path>]`
-- `dotkc key install [--key <path>] [--force]`
-- `dotkc set/get/del <service> <category> <KEY>`
-- `dotkc list <service> [category]`
-- `dotkc import <service> <category> [dotenv_file]`
-- `dotkc run [--json] [--unsafe-values] [dotenv options] <spec>[,<spec>...] [-- <cmd> ...]`
-
-`spec` formats:
 - wildcard: `<service>:<category>`
 - exact: `<service>:<category>:<KEY>`
+
+Run options:
+
+- `--json` inspect mode: output JSON (redacted unless `--unsafe-values`)
+- `--unsafe-values` inspect mode: print full secret values (unsafe)
+- `--dotenv` / `--dotenv-file <path>` / `--dotenv-override` / `--no-default-dotenv`
+
+---
+
+## Exit codes (selected)
+
+- `3` NOT_FOUND
 
 ---
 
