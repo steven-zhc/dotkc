@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+function sha256(buf) {
+  return crypto.createHash('sha256').update(buf).digest('hex');
+}
+
 export function expandHome(p) {
   if (!p) return p;
   if (p === '~') return os.homedir();
@@ -79,11 +83,17 @@ function decryptVaultJson(key, vaultObj) {
   return JSON.parse(plain.toString('utf8'));
 }
 
+export function getVaultFingerprint(vaultPath) {
+  const raw = readFileIfExists(vaultPath);
+  if (!raw) return null;
+  return sha256(raw);
+}
+
 export function loadVault(vaultPath, key) {
   const raw = readFileIfExists(vaultPath);
-  if (!raw) return { data: {}, exists: false };
+  if (!raw) return { data: {}, exists: false, fingerprint: null };
   const vo = JSON.parse(raw.toString('utf8'));
-  return { data: decryptVaultJson(key, vo), exists: true };
+  return { data: decryptVaultJson(key, vo), exists: true, fingerprint: sha256(raw) };
 }
 
 function timestampId() {
@@ -152,13 +162,25 @@ function backupExistingVaultOrThrow(vaultPath) {
   pruneBackups(vaultPath, keep);
 }
 
-export function saveVault(vaultPath, key, data) {
-  // P0 safety: always back up the existing vault before overwriting.
+export function saveVault(vaultPath, key, data, opts = {}) {
+  const expected = opts.expectedFingerprint ?? null;
+  const current = getVaultFingerprint(vaultPath);
+
+  // P0-2 safety: optimistic concurrency check.
+  // If the vault changed since caller loaded it, refuse to overwrite.
+  if (expected && current && expected !== current) {
+    throw new Error('Vault changed on disk (sync conflict). Re-run the command and try again.');
+  }
+
+  // P0-1 safety: always back up the existing vault before overwriting.
   // If backup fails, throw (caller should refuse to write).
   backupExistingVaultOrThrow(vaultPath);
 
   const vo = encryptVaultJson(key, data);
-  atomicWriteFile(vaultPath, Buffer.from(JSON.stringify(vo, null, 2) + '\n', 'utf8'), 0o600);
+  const buf = Buffer.from(JSON.stringify(vo, null, 2) + '\n', 'utf8');
+  atomicWriteFile(vaultPath, buf, 0o600);
+
+  return sha256(buf);
 }
 
 export function ensureKeyFile(keyPath) {

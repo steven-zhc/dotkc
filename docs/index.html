@@ -356,9 +356,10 @@ ssh user@machine-b 'dotkc status'</code></pre>
               <p class="micro">If you run <code>dotkc init</code> on machine B, it will create a NEW key that cannot decrypt an existing vault encrypted with a different key.</p>
             </div>
             <div class="block">
-              <h3>Backups (P0 safety)</h3>
+              <h3>Backups + sync conflicts (P0 safety)</h3>
               <p>
                 Before overwriting the vault, dotkc creates a backup and refuses to write if backup fails.
+                If the vault file changes on disk during an operation (iCloud sync conflict), dotkc refuses to overwrite and asks you to retry.
               </p>
               <pre><code># defaults
 DOTKC_BACKUP_KEEP=3

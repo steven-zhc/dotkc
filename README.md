@@ -41,6 +41,7 @@ export DOTKC_VAULT_KEY_PATH="$HOME/.dotkc/key"
 ### Backup settings (P0 safety)
 
 Before overwriting the vault, dotkc creates a backup and refuses to write if backup fails.
+If the vault changes on disk during an operation (sync conflict), dotkc refuses to overwrite and asks you to retry.
 
 - `DOTKC_BACKUP_KEEP=3` keep last 3 backups (default)
 - `DOTKC_BACKUP_KEEP=0` disable backups

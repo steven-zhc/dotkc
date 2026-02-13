@@ -28,6 +28,7 @@ import {
   loadVault,
   readVaultKey,
   saveVault,
+  getVaultFingerprint,
 } from './vault.mjs';
 
 function die(msg, code = 1) {
@@ -437,13 +438,23 @@ if (VAULT_COMMANDS.has(cmd)) {
   }
 
   let data;
+  let fingerprint = null;
   try {
-    ({ data } = loadVault(vaultPath, key));
+    const loaded = loadVault(vaultPath, key);
+    data = loaded.data;
+    fingerprint = loaded.fingerprint ?? getVaultFingerprint(vaultPath);
   } catch (e) {
     die(`Failed to decrypt vault: ${vaultPath}\n${e?.message ?? String(e)}`, 2);
   }
 
-  const save = (next) => saveVault(vaultPath, key, next);
+  const save = (next) => {
+    try {
+      const nextFp = saveVault(vaultPath, key, next, { expectedFingerprint: fingerprint });
+      fingerprint = nextFp;
+    } catch (e) {
+      die(e?.message ?? String(e), 2);
+    }
+  };
 
   if (sub === 'set') {
     const [service, category, K, value] = args;
