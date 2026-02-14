@@ -470,25 +470,45 @@ dotkc move vercel:acme-app-prod fly.io:acme-app-prod</code></pre>
 
           <div class="two" style="margin-top: 16px">
             <div class="block">
-              <h3>OpenClaw automation (structured output)</h3>
-              <p class="micro">Use <code>--openclaw</code> so tools/agents get a stable JSON envelope.</p>
-              <pre><code>dotkc --help --openclaw
+              <h3>OpenClaw integration (L1)</h3>
+              <p class="micro">
+                Goal: let OpenClaw <strong>use</strong> secrets without printing them. The safest pattern is: keep a repo-committed allowlist
+                (no values) and always run commands via <code>dotkc run</code>.
+              </p>
+              <pre><code># 1) commit allowlist (NO values)
+# ./dotkc.spec
+fly.io:acme-app-dev
+vercel:acme-app-dev:CLERK_SECRET_KEY
+
+# 2) on the OpenClaw host, inspect allowlist resolution (redacted JSON)
+dotkc run --spec-file ./dotkc.spec --openclaw
+
+# 3) run real commands with injected env (values never printed)
+dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
+              <p class="micro">
+                Tip: keep the vault synced (ciphertext), but keep <code>~/.dotkc/key</code> local and protected. Install it on machine B via
+                <code>dotkc key install</code> (stdin-only).
+              </p>
+            </div>
+
+            <div class="block">
+              <h3>OpenClaw tool policy recommendations</h3>
+              <p class="micro">
+                The biggest OpenClaw footgun is letting an agent print secrets. Guardrails:
+              </p>
+              <ul>
+                <li><strong>Prefer inspect redaction:</strong> use <code>dotkc run ... --openclaw</code> for checks (never <code>--unsafe-values</code>).</li>
+                <li><strong>Prefer spec files:</strong> agents should use <code>--spec-file</code>, not ad-hoc secret names in prompts.</li>
+                <li><strong>Minimize shell blast radius:</strong> restrict exec approvals/allowlists to the commands you actually need (e.g. <code>pnpm dev</code>, <code>npm test</code>).</li>
+                <li><strong>Keep transcripts clean:</strong> do not run <code>dotkc get</code> in agent workflows (it prints raw values).</li>
+              </ul>
+              <pre><code># structured discovery for agents
+
+dotkc --help --openclaw
 
 dotkc status --openclaw
 
 dotkc doctor --openclaw</code></pre>
-            </div>
-            <div class="block">
-              <h3>Allowlist secrets for agents (spec file)</h3>
-              <pre><code># dotkc.spec (commit this; NO values)
-fly.io:acme-app-dev
-vercel:acme-app-dev:CLERK_SECRET_KEY
-
-# inspect as OpenClaw JSON (redacted)
-dotkc run --spec-file ./dotkc.spec --openclaw
-
-# run with injected env
-dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
             </div>
           </div>
         </div>
