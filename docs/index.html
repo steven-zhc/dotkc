@@ -267,8 +267,8 @@ dotkc run --spec-file ./dotkc.spec --openclaw</code></pre>
 
       <section id="compare" class="section section--tinted">
         <div class="container">
-          <h2>dotkc vs other secret tools</h2>
-          <p class="lead">Pricing, positioning, and when to use what.</p>
+          <h2>Compare (OpenClaw-focused)</h2>
+          <p class="lead">The #1 question: will secrets end up in model context?</p>
 
           <div class="grid3" style="margin-top: 16px">
             <div class="card">
@@ -276,15 +276,19 @@ dotkc run --spec-file ./dotkc.spec --openclaw</code></pre>
               <ul>
                 <li><strong>Positioning:</strong> personal, local-first, env-injection focused.</li>
                 <li><strong>Pricing:</strong> free / OSS (you bring iCloud Drive sync).</li>
-                <li><strong>Best for:</strong> 1–3 machines, OpenClaw automation, simple workflows.</li>
+                <li><strong>Model-context risk:</strong> low by default (inspect is redacted; prefer allowlist + <code>run</code> injection).</li>
+                <li><strong>On-disk:</strong> synced vault is ciphertext; key is per-machine.</li>
+                <li><strong>Recovery:</strong> backups + sync-conflict refuse overwrite.</li>
               </ul>
             </div>
             <div class="card">
               <h3>1Password CLI (<code>op</code>)</h3>
               <ul>
-                <li><strong>Positioning:</strong> full password manager + team sharing/governance.</li>
+                <li><strong>Positioning:</strong> password manager ecosystem + sharing/governance.</li>
                 <li><strong>Pricing:</strong> paid subscription (per user/month; varies by plan).</li>
-                <li><strong>Best for:</strong> teams, sharing, audit trails, managed access.</li>
+                <li><strong>Model-context risk:</strong> depends on usage. If an agent runs <code>op read</code> and prints output, secrets can land in the model transcript.</li>
+                <li><strong>On-disk:</strong> managed by 1Password app/agent (not a simple vault file you control).</li>
+                <li><strong>Recovery:</strong> strong account recovery + sharing controls (best for teams).</li>
               </ul>
             </div>
             <div class="card">
@@ -292,13 +296,19 @@ dotkc run --spec-file ./dotkc.spec --openclaw</code></pre>
               <ul>
                 <li><strong>Positioning:</strong> production IAM + rotation + audit.</li>
                 <li><strong>Pricing:</strong> pay-per-secret / API usage (plus KMS/requests depending on provider).</li>
-                <li><strong>Best for:</strong> production systems and regulated environments.</li>
+                <li><strong>Model-context risk:</strong> depends on the integration path (agents can still leak secrets if they print values).</li>
+                <li><strong>On-disk:</strong> not local-first; requires cloud access and policy wiring.</li>
+                <li><strong>Recovery:</strong> enterprise-grade controls; heavy for personal local dev.</li>
               </ul>
             </div>
           </div>
 
           <div class="callout" style="margin-top: 16px">
-            <strong>Rule of thumb:</strong> If you need sharing + governance, use 1Password or cloud secrets. If you want a small, local-first tool that makes OpenClaw safer, use dotkc.
+            <strong>OpenClaw reality check:</strong> OpenClaw configuration/auth files are typically plaintext JSON on disk (with tight permissions). If you want encryption-at-rest + agent-friendly injection, keep secrets out of config and use a dedicated workflow.
+          </div>
+
+          <div class="micro" style="margin-top: 10px">
+            Reference: OpenClaw issue “Support for encrypted API keys / secrets management” (#7916).
           </div>
         </div>
       </section>
