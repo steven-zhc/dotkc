@@ -27,6 +27,11 @@
           <a href="#faq">FAQ</a>
           <a class="nav__cta" href="https://github.com/steven-zhc/dotkc">GitHub</a>
         </nav>
+
+        <div class="mode-switch" role="tablist" aria-label="Documentation mode">
+          <button class="mode-switch__btn" data-guide="human" role="tab" aria-selected="true" type="button">Human guide</button>
+          <button class="mode-switch__btn" data-guide="agent" role="tab" aria-selected="false" type="button">OpenClaw / agent guide</button>
+        </div>
       </div>
     </header>
 
@@ -42,19 +47,34 @@
               env injection without sprinkling secrets across <code>.env</code> files, shell history, or CI logs.
             </p>
 
-            <div class="hero__buttons">
-              <a class="btn btn--primary" href="#quickstart">Get started</a>
-              <a class="btn" href="https://www.npmjs.com/package/dotkc">npm</a>
-              <a class="btn" href="https://github.com/steven-zhc/dotkc">source</a>
+            <div data-guide-panel="human">
+              <p class="lead">
+                <strong>dotkc</strong> stores secrets in an <strong>encrypted vault file</strong> (ideal for iCloud Drive sync) and injects them into
+                commands when you need them. It's built for personal OpenClaw/local-agent setups where you want secure, repeatable
+                env injection without sprinkling secrets across <code>.env</code> files, shell history, or CI logs.
+              </p>
+
+              <div class="hero__buttons">
+                <a class="btn btn--primary" href="#quickstart">Get started</a>
+                <a class="btn" href="https://www.npmjs.com/package/dotkc">npm</a>
+                <a class="btn" href="https://github.com/steven-zhc/dotkc">source</a>
+              </div>
             </div>
 
-            <div class="mode-switch" role="tablist" aria-label="Documentation mode">
-              <button class="mode-switch__btn" data-guide="human" role="tab" aria-selected="true" type="button">Human guide</button>
-              <button class="mode-switch__btn" data-guide="agent" role="tab" aria-selected="false" type="button">OpenClaw / agent guide</button>
+            <div data-guide-panel="agent">
+              <p class="lead">
+                This mode is for tools. dotkc can emit an OpenClaw-friendly JSON envelope via <code>--openclaw</code>.
+                Use it to discover the CLI surface area and to drive <code>dotkc run</code> safely.
+              </p>
+
+              <div class="hero__buttons">
+                <a class="btn btn--primary" href="#quickstart">Get started</a>
+                <a class="btn" href="#usecases">Recipes</a>
+              </div>
             </div>
           </div>
 
-          <div class="hero__code">
+          <div class="hero__code" data-guide-panel="human">
             <pre><code># initialize vault (creates iCloud Drive vault + local key file)
 dotkc init
 
@@ -66,13 +86,26 @@ dotkc run vercel:acme-app-dev
 
 # run your app with env injected
 dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
-            <p class="micro">
-              Inspect mode prints redacted values by default. Use <code>--unsafe-values</code> only on a trusted machine.
-            </p>
+            <p class="micro">Inspect mode prints redacted values by default. Use <code>--unsafe-values</code> only on a trusted machine.</p>
+          </div>
+
+          <div class="hero__code" data-guide-panel="agent">
+            <pre><code># discover commands as JSON
+
+dotkc --help --openclaw
+
+# structured status
+
+dotkc status --openclaw
+
+# inspect allowlisted secrets (redacted)
+
+dotkc run --spec-file ./dotkc.spec --openclaw</code></pre>
+            <p class="micro">Agents should prefer allowlists (<code>--spec-file</code>) and redacted inspect output.</p>
           </div>
         </div>
 
-        <div class="container diagram human-only" aria-label="OpenClaw secrets flow diagram">
+        <div class="container diagram" data-guide-panel="human" aria-label="OpenClaw secrets flow diagram">
           <div class="card__title">How secrets flow</div>
           <div class="diagram__svg">
             <svg viewBox="0 0 900 240" role="img" aria-label="dotkc encrypts a vault, iCloud Drive syncs, dotkc run injects env">

@@ -111,6 +111,10 @@ a:hover { color: var(--accent); }
 body[data-guide="human"] .guide--agent { display: none; }
 body[data-guide="agent"] .guide--human { display: none; }
 
+/* Generic per-panel switching (use for hero / small blocks) */
+body[data-guide="human"] [data-guide-panel="agent"] { display: none; }
+body[data-guide="agent"] [data-guide-panel="human"] { display: none; }
+
 /* Hide human-only visuals in agent mode */
 body[data-guide="agent"] .human-only { display: none; }
 
