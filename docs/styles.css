@@ -111,6 +111,9 @@ a:hover { color: var(--accent); }
 body[data-guide="human"] .guide--agent { display: none; }
 body[data-guide="agent"] .guide--human { display: none; }
 
+/* Hide human-only visuals in agent mode */
+body[data-guide="agent"] .human-only { display: none; }
+
 /* Raw JSON mode removed: keep hidden */
 .guide--json { display: none; }
 

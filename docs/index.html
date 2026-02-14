@@ -72,7 +72,7 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
           </div>
         </div>
 
-        <div class="container diagram" aria-label="OpenClaw secrets flow diagram">
+        <div class="container diagram human-only" aria-label="OpenClaw secrets flow diagram">
           <div class="card__title">How secrets flow</div>
           <div class="diagram__svg">
             <svg viewBox="0 0 900 240" role="img" aria-label="dotkc encrypts a vault, iCloud Drive syncs, dotkc run injects env">
@@ -529,32 +529,72 @@ DOTKC_BACKUP_DIR=/path/to/dir</code></pre>
             </div>
             <pre><code>{
   "tool": "dotkc",
-  "switch": "--openclaw (alias: --format openclaw)",
-  "envelope": {
-    "format": "openclaw",
-    "command": "string",
-    "ok": "boolean",
-    "code": "number",
-    "data": "any",
-    "warnings": "string[]",
-    "errors": "string[]"
+  "purpose": "Local-first secrets vault + env injection designed for OpenClaw automation",
+  "agentMode": {
+    "switches": ["--openclaw", "--format openclaw"],
+    "envelope": {
+      "format": "openclaw",
+      "command": "string",
+      "ok": "boolean",
+      "code": "number",
+      "data": "any",
+      "warnings": "string[]",
+      "errors": "string[]"
+    }
   },
-  "discovery": {
-    "cmd": "dotkc --help --openclaw",
-    "read": "data.commands + data.usageText"
+  "discovery": [
+    {
+      "cmd": "dotkc --help --openclaw",
+      "expect": "data.commands + data.usageText"
+    },
+    {
+      "cmd": "dotkc --version --openclaw",
+      "expect": "data.version"
+    }
+  ],
+  "paths": {
+    "vault": "DOTKC_VAULT_PATH (default: iCloud Drive dotkc.vault)",
+    "key": "DOTKC_VAULT_KEY_PATH (default: ~/.dotkc/key)"
+  },
+  "safety": {
+    "backups": {
+      "DOTKC_BACKUP_KEEP": "3 (0 disables)",
+      "DOTKC_BACKUP_DIR": "optional"
+    },
+    "syncConflicts": "dotkc refuses overwrite if vault changed on disk; retry"
   },
   "workflows": {
-    "health": [
-      "dotkc status --openclaw",
-      "dotkc doctor --openclaw"
-    ],
+    "health": {
+      "steps": [
+        "dotkc status --openclaw",
+        "dotkc doctor --openclaw"
+      ]
+    },
     "allowlist": {
-      "file": "./dotkc.spec",
-      "fileFormat": "one spec per line; comments (#) allowed",
+      "specFile": "./dotkc.spec",
+      "specFormat": [
+        "one spec per line",
+        "supports comments with #",
+        "wildcard: <service>:<category>",
+        "exact: <service>:<category>:<KEY>"
+      ],
       "inspect": "dotkc run --spec-file ./dotkc.spec --openclaw",
       "run": "dotkc run --spec-file ./dotkc.spec -- <cmd>"
+    },
+    "manage": {
+      "examples": [
+        "dotkc set vercel acme-app-dev CLERK_SECRET_KEY",
+        "dotkc import vercel acme-app-dev .env",
+        "dotkc search clerk --json",
+        "dotkc export vercel:acme-app-dev",
+        "dotkc copy vercel:acme-app-dev vercel:acme-app-prod"
+      ]
     }
-  }
+  },
+  "notes": [
+    "Never print full values unless explicitly needed (--unsafe-values).",
+    "Anyone with vault + key can decrypt; protect ~/.dotkc/key."
+  ]
 }</code></pre>
           </div>
         </div>
