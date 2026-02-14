@@ -31,9 +31,47 @@ import {
   getVaultFingerprint,
 } from './vault.mjs';
 
+let GLOBAL_FORMAT = null;
+
+function sendOpenClaw(command, { ok, code = 0, data = null, warnings = [], errors = [] } = {}) {
+  const out = {
+    format: 'openclaw',
+    command,
+    ok: Boolean(ok),
+    code,
+    data,
+    warnings,
+    errors,
+  };
+  process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+}
+
 function die(msg, code = 1) {
+  if (GLOBAL_FORMAT === 'openclaw') {
+    sendOpenClaw('error', { ok: false, code, errors: [String(msg ?? 'Error')] });
+    process.exit(code);
+  }
   if (msg) console.error(String(msg));
   process.exit(code);
+}
+
+function getCommandsReference() {
+  return [
+    { name: 'init', usage: 'dotkc init [--vault <path>] [--key <path>]', desc: 'Initialize vault + local key (prompts before overwriting).' },
+    { name: 'status', usage: 'dotkc status [--vault <path>] [--key <path>]', desc: 'Print JSON status (paths + canDecrypt).' },
+    { name: 'doctor', usage: 'dotkc doctor [--vault <path>] [--key <path>] [--json]', desc: 'Run diagnostics and suggest fixes.' },
+    { name: 'key install', usage: 'cat ~/.dotkc/key | dotkc key install [--key <path>] [--force]', desc: 'Install key from stdin (refuses overwrite unless --force).' },
+    { name: 'set', usage: 'dotkc set <service> <category> <KEY> [value|-]', desc: 'Set a secret (prompt hidden if value omitted).' },
+    { name: 'get', usage: 'dotkc get <service> <category> <KEY>', desc: 'Print secret value to stdout.' },
+    { name: 'del', usage: 'dotkc del <service> <category> <KEY>', desc: 'Delete a secret.' },
+    { name: 'list', usage: 'dotkc list <service> [category]', desc: 'List categories or keys.' },
+    { name: 'search', usage: 'dotkc search <query> [--json]', desc: 'Search keys by substring (no values).' },
+    { name: 'export', usage: 'dotkc export <spec>[,<spec>...] [--unsafe-values]', desc: 'Export dotenv lines (redacted by default).' },
+    { name: 'copy', usage: 'dotkc copy <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]', desc: 'Copy a category.' },
+    { name: 'move', usage: 'dotkc move <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]', desc: 'Move a category.' },
+    { name: 'import', usage: 'dotkc import <service> <category> [dotenv_file]', desc: 'Interactive import from .env.' },
+    { name: 'run', usage: 'dotkc run [options] <spec>[,<spec>...] [-- <cmd> ...]', desc: 'Inspect (redacted) or execute with injected env.' },
+  ];
 }
 
 function usage(code = 0) {
@@ -109,6 +147,18 @@ Vault backend notes:
   - Override with: DOTKC_VAULT_KEY_PATH=/path/to/key
 - Vault uses strong encryption (AES-256-GCM) with a random 32-byte key.
 `;
+  if (GLOBAL_FORMAT === 'openclaw') {
+    sendOpenClaw('help', {
+      ok: code === 0,
+      code,
+      data: {
+        version: VERSION,
+        usageText: txt.trimStart(),
+        commands: getCommandsReference(),
+      },
+    });
+    process.exit(code);
+  }
   console.error(txt.trimStart());
   process.exit(code);
 }
@@ -241,12 +291,41 @@ function parseSvcCat(s) {
   return { service: sp.service, category: sp.category };
 }
 
-const argv = process.argv.slice(2);
+function parseGlobalArgs(argvIn) {
+  const argv = [...argvIn];
+  let format = null;
+  const out = [];
+
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--format') {
+      const f = argv[++i];
+      if (!f) die('Missing value for --format', 2);
+      format = f;
+      continue;
+    }
+    if (a === '--openclaw') {
+      format = 'openclaw';
+      continue;
+    }
+    out.push(a);
+  }
+
+  return { format, argv: out };
+}
+
+let argv = process.argv.slice(2);
+({ format: GLOBAL_FORMAT, argv } = parseGlobalArgs(argv));
+
 if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') usage(argv.length ? 0 : 1);
 
 // version flags
 if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
-  console.log(VERSION);
+  if (GLOBAL_FORMAT === 'openclaw') {
+    sendOpenClaw('version', { ok: true, code: 0, data: { version: VERSION } });
+  } else {
+    console.log(VERSION);
+  }
   process.exit(0);
 }
 
@@ -441,6 +520,11 @@ if (VAULT_COMMANDS.has(cmd)) {
         out.canDecrypt = false;
         out.error = e?.message ?? String(e);
       }
+    }
+
+    if (GLOBAL_FORMAT === 'openclaw') {
+      sendOpenClaw('status', { ok: out.canDecrypt, code: out.canDecrypt ? 0 : 2, data: out, errors: out.canDecrypt ? [] : [out.error ?? 'Cannot decrypt vault'] });
+      process.exit(out.canDecrypt ? 0 : 2);
     }
 
     process.stdout.write(JSON.stringify(out, null, 2) + '\n');
