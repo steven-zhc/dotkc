@@ -29,8 +29,8 @@
         </nav>
 
         <nav class="nav" data-guide-panel="agent">
-          <a href="#agent">Agent JSON</a>
-          <a href="#agent">Commands</a>
+          <a href="#agent-json">Agent JSON</a>
+          <a href="#agent-commands">Commands</a>
           <a class="nav__cta" href="https://github.com/steven-zhc/dotkc">GitHub</a>
         </nav>
       </div>
@@ -504,6 +504,7 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
       <!-- agent guide is JSON-first and designed for OpenClaw parsing -->
       <section id="agent" class="section section--tinted">
         <div class="container">
+          <div id="agent-json"></div>
           <h2>OpenClaw / agent guide (JSON-first)</h2>
           <p class="lead">This mode is designed for OpenClaw to parse directly.</p>
 
@@ -654,6 +655,9 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
   ]
 }</code></pre>
           </div>
+
+          <div id="agent-commands"></div>
+          <p class="micro">Commands are listed in <code>commands[]</code> inside the JSON above.</p>
         </div>
       </section>
 
