@@ -21,6 +21,7 @@
         <nav class="nav">
           <a href="#why">Why</a>
           <a href="#how">How</a>
+          <a href="#usecases">Use cases</a>
           <a href="#quickstart">Quickstart</a>
           <a href="#faq">FAQ</a>
           <a href="#notes">Notes</a>
@@ -220,6 +221,73 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
         </div>
       </section>
 
+      <section id="usecases" class="section">
+        <div class="container">
+          <h2>Use cases</h2>
+          <p class="lead">
+            dotkc is optimized for personal workflows and agent automation. These are the patterns it was designed for.
+          </p>
+
+          <div class="two" style="margin-top: 16px">
+            <div class="block">
+              <h3>OpenClaw / agent-friendly output</h3>
+              <p>
+                When an agent is calling dotkc, plain text output is annoying to parse and easy to misread.
+                dotkc supports an OpenClaw-friendly JSON envelope via <code>--openclaw</code> (alias for <code>--format openclaw</code>).
+              </p>
+              <pre><code># let an agent discover the CLI surface area
+
+dotkc --help --openclaw
+
+# status as structured JSON
+
+dotkc status --openclaw</code></pre>
+              <p class="micro">
+                This mode is for tooling: <code>{ format, command, ok, code, data, warnings, errors }</code>.
+              </p>
+            </div>
+            <div class="block">
+              <h3>Allowlist what an agent can request (spec file)</h3>
+              <p>
+                Best practice: commit a spec allowlist (no values) and let dotkc resolve values at runtime.
+                This avoids sprinkling secret names across prompts and scripts.
+              </p>
+              <pre><code># dotkc.spec (checked into repo)
+# one spec per line; comments allowed
+fly.io:acme-app-dev
+vercel:acme-app-dev:CLERK_SECRET_KEY
+
+# inspect as OpenClaw JSON (redacted)
+dotkc run --spec-file ./dotkc.spec --openclaw
+
+# run your app with injected env
+dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
+            </div>
+          </div>
+
+          <div class="two" style="margin-top: 16px">
+            <div class="block">
+              <h3>Local dev without leaking secrets</h3>
+              <p>
+                Prefer running commands with injected env rather than exporting env vars into your shell.
+              </p>
+              <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
+            </div>
+            <div class="block">
+              <h3>Find / reorganize secrets fast</h3>
+              <pre><code># find a key (no values printed)
+dotkc search clerk
+
+# duplicate an environment (dev → prod)
+dotkc copy fly.io:acme-app-dev fly.io:acme-app-prod
+
+# rename/move categories
+dotkc move fly.io:acme-app-prod vercel:acme-app-prod</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="quickstart" class="section section--tinted">
         <div class="container">
           <h2>Quickstart</h2>
@@ -256,8 +324,8 @@ dotkc import vercel acme-app-dev .env</code></pre>
               <div class="step__body">
                 <h3>Inspect secrets (redacted)</h3>
                 <pre><code>dotkc run vercel:acme-app-dev
-# or JSON
-# dotkc run --json vercel:acme-app-dev</code></pre>
+# JSON for tools/agents
+# dotkc run --format openclaw vercel:acme-app-dev</code></pre>
               </div>
             </div>
 
