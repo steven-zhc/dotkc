@@ -21,10 +21,10 @@
         <nav class="nav">
           <a href="#why">Why</a>
           <a href="#how">How</a>
-          <a href="#usecases">Use cases</a>
+          <a href="#compare">Compare</a>
           <a href="#quickstart">Quickstart</a>
+          <a href="#usecases">Use cases</a>
           <a href="#faq">FAQ</a>
-          <a href="#notes">Notes</a>
           <a class="nav__cta" href="https://github.com/steven-zhc/dotkc">GitHub</a>
         </nav>
       </div>
@@ -227,69 +227,40 @@ dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
         </div>
       </section>
 
-      <section id="usecases" class="section">
+      <section id="compare" class="section section--tinted">
         <div class="container">
-          <h2>Use cases</h2>
-          <p class="lead">
-            dotkc is optimized for personal workflows and agent automation. These are the patterns it was designed for.
-          </p>
+          <h2>dotkc vs other secret tools</h2>
+          <p class="lead">Pricing, positioning, and when to use what.</p>
 
-          <div class="two" style="margin-top: 16px">
-            <div class="block">
-              <h3>OpenClaw / agent-friendly output</h3>
-              <p>
-                When an agent is calling dotkc, plain text output is annoying to parse and easy to misread.
-                dotkc supports an OpenClaw-friendly JSON envelope via <code>--openclaw</code> (alias for <code>--format openclaw</code>).
-              </p>
-              <pre><code># let an agent discover the CLI surface area
-
-dotkc --help --openclaw
-
-# status as structured JSON
-
-dotkc status --openclaw</code></pre>
-              <p class="micro">
-                This mode is for tooling: <code>{ format, command, ok, code, data, warnings, errors }</code>.
-              </p>
+          <div class="grid3" style="margin-top: 16px">
+            <div class="card">
+              <h3>dotkc</h3>
+              <ul>
+                <li><strong>Positioning:</strong> personal, local-first, env-injection focused.</li>
+                <li><strong>Pricing:</strong> free / OSS (you bring iCloud Drive sync).</li>
+                <li><strong>Best for:</strong> 1–3 machines, OpenClaw automation, simple workflows.</li>
+              </ul>
             </div>
-            <div class="block">
-              <h3>Allowlist what an agent can request (spec file)</h3>
-              <p>
-                Best practice: commit a spec allowlist (no values) and let dotkc resolve values at runtime.
-                This avoids sprinkling secret names across prompts and scripts.
-              </p>
-              <pre><code># dotkc.spec (checked into repo)
-# one spec per line; comments allowed
-fly.io:acme-app-dev
-vercel:acme-app-dev:CLERK_SECRET_KEY
-
-# inspect as OpenClaw JSON (redacted)
-dotkc run --spec-file ./dotkc.spec --openclaw
-
-# run your app with injected env
-dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
+            <div class="card">
+              <h3>1Password CLI (<code>op</code>)</h3>
+              <ul>
+                <li><strong>Positioning:</strong> full password manager + team sharing/governance.</li>
+                <li><strong>Pricing:</strong> paid subscription (per user/month; varies by plan).</li>
+                <li><strong>Best for:</strong> teams, sharing, audit trails, managed access.</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Cloud secret managers</h3>
+              <ul>
+                <li><strong>Positioning:</strong> production IAM + rotation + audit.</li>
+                <li><strong>Pricing:</strong> pay-per-secret / API usage (plus KMS/requests depending on provider).</li>
+                <li><strong>Best for:</strong> production systems and regulated environments.</li>
+              </ul>
             </div>
           </div>
 
-          <div class="two" style="margin-top: 16px">
-            <div class="block">
-              <h3>Local dev without leaking secrets</h3>
-              <p>
-                Prefer running commands with injected env rather than exporting env vars into your shell.
-              </p>
-              <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
-            </div>
-            <div class="block">
-              <h3>Find / reorganize secrets fast</h3>
-              <pre><code># find a key (no values printed)
-dotkc search clerk
-
-# duplicate an environment (dev → prod)
-dotkc copy fly.io:acme-app-dev fly.io:acme-app-prod
-
-# rename/move categories
-dotkc move fly.io:acme-app-prod vercel:acme-app-prod</code></pre>
-            </div>
+          <div class="callout" style="margin-top: 16px">
+            <strong>Rule of thumb:</strong> If you need sharing + governance, use 1Password or cloud secrets. If you want a small, local-first tool that makes OpenClaw safer, use dotkc.
           </div>
         </div>
       </section>
@@ -297,54 +268,134 @@ dotkc move fly.io:acme-app-prod vercel:acme-app-prod</code></pre>
       <section id="quickstart" class="section section--tinted">
         <div class="container">
           <h2>Quickstart</h2>
-          <p class="lead">Up and running in five steps.</p>
+          <p class="lead">Two-machine setup (A = laptop, B = OpenClaw host). Copy/paste friendly.</p>
 
           <div class="steps">
             <div class="step">
               <div class="step__body">
-                <h3>Install</h3>
-                <pre><code>npm i -g dotkc
-# or
-pnpm add -g dotkc</code></pre>
+                <h3>Step 1 — Install on both machines</h3>
+                <pre><code># machine A + machine B
+npm i -g dotkc</code></pre>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
-                <h3>Initialize vault</h3>
-                <pre><code>dotkc init</code></pre>
-                <p>Creates the iCloud Drive vault (if missing) and a local key file (not synced). If they already exist, dotkc will ask whether to overwrite.</p>
+                <h3>Step 2 — Initialize on machine A</h3>
+                <pre><code># machine A
+
+dotkc init
+
+dotkc status</code></pre>
+                <p class="micro">This creates the vault (synced) + a local key file (NOT synced).</p>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
-                <h3>Import from .env</h3>
-                <pre><code>cd /path/to/your/project
+                <h3>Step 3 — Install the key on machine B (SSH host)</h3>
+                <pre><code># machine A → machine B
 
+cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
+
+# verify
+ssh user@machine-b 'dotkc status'
+
+# if something is wrong
+ssh user@machine-b 'dotkc doctor --openclaw'</code></pre>
+              </div>
+            </div>
+
+            <div class="step">
+              <div class="step__body">
+                <h3>Step 4 — Add or import secrets (machine A)</h3>
+                <pre><code># interactive (hidden prompt)
+dotkc set vercel acme-app-dev CLERK_SECRET_KEY
+
+# or import from dotenv (picker)
 dotkc import vercel acme-app-dev .env</code></pre>
               </div>
             </div>
 
             <div class="step">
               <div class="step__body">
-                <h3>Inspect secrets (redacted)</h3>
-                <pre><code>dotkc run vercel:acme-app-dev
-# JSON for tools/agents
-# dotkc run --format openclaw vercel:acme-app-dev</code></pre>
+                <h3>Step 5 — Run with injected env</h3>
+                <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div class="step">
-              <div class="step__body">
-                <h3>Run your app with injected env</h3>
-                <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev
-# Next.js build
-# dotkc run vercel:acme-app-dev -- pnpm build
+      <section id="usecases" class="section">
+        <div class="container">
+          <h2>Use cases</h2>
+          <p class="lead">Concrete recipes (why it exists + how to use it).</p>
 
-# exact (single key)
-dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
-              </div>
+          <div class="two" style="margin-top: 16px">
+            <div class="block">
+              <h3>Run commands without leaking secrets</h3>
+              <p class="micro">Avoid exporting env vars into your interactive shell.</p>
+              <pre><code>dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
+            </div>
+            <div class="block">
+              <h3>Inspect safely / export only when needed</h3>
+              <pre><code># inspect (redacted)
+dotkc run vercel:acme-app-dev
+
+# export dotenv lines (redacted)
+dotkc export vercel:acme-app-dev
+
+# full values only when you must
+# dotkc export vercel:acme-app-dev --unsafe-values</code></pre>
+            </div>
+          </div>
+
+          <div class="two" style="margin-top: 16px">
+            <div class="block">
+              <h3>Backups + sync conflicts (P0 safety)</h3>
+              <p class="micro">dotkc backs up before overwriting and refuses to overwrite on sync conflicts.</p>
+              <pre><code># defaults
+DOTKC_BACKUP_KEEP=3
+
+# disable backups
+DOTKC_BACKUP_KEEP=0
+
+# store backups elsewhere
+DOTKC_BACKUP_DIR=/path/to/dir</code></pre>
+            </div>
+            <div class="block">
+              <h3>Find / reorganize secrets fast</h3>
+              <pre><code>dotkc search clerk
+
+# dev → prod
+dotkc copy vercel:acme-app-dev vercel:acme-app-prod
+
+dotkc move vercel:acme-app-prod fly.io:acme-app-prod</code></pre>
+            </div>
+          </div>
+
+          <div class="two" style="margin-top: 16px">
+            <div class="block">
+              <h3>OpenClaw automation (structured output)</h3>
+              <p class="micro">Use <code>--openclaw</code> so tools/agents get a stable JSON envelope.</p>
+              <pre><code>dotkc --help --openclaw
+
+dotkc status --openclaw
+
+dotkc doctor --openclaw</code></pre>
+            </div>
+            <div class="block">
+              <h3>Allowlist secrets for agents (spec file)</h3>
+              <pre><code># dotkc.spec (commit this; NO values)
+fly.io:acme-app-dev
+vercel:acme-app-dev:CLERK_SECRET_KEY
+
+# inspect as OpenClaw JSON (redacted)
+dotkc run --spec-file ./dotkc.spec --openclaw
+
+# run with injected env
+dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
             </div>
           </div>
         </div>
@@ -360,10 +411,6 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
               <li><strong>Sync</strong> via iCloud Drive works well for personal laptop &harr; Mac mini setups.</li>
               <li><strong>Better agent hygiene</strong>: OpenClaw can use secrets without you pasting them into chat.</li>
             </ul>
-            <p class="micro">
-              dotkc is optimized for personal workflows. For large teams and production secret management, consider dedicated
-              platforms (Vault, AWS/GCP secrets, 1Password CLI, etc.).
-            </p>
           </div>
         </div>
       </section>
@@ -383,168 +430,22 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
               <summary>How do I print the full values?</summary>
               <p>
                 Use <code>dotkc run --unsafe-values &lt;spec&gt;</code> (inspect mode) or
-                <code>dotkc export &lt;spec&gt; --unsafe-values</code> to export dotenv lines. dotkc will print a warning to stderr.
-              </p>
-            </details>
-            <details>
-              <summary>Does dotkc support Windows/Linux?</summary>
-              <p>
-                Vault backend is file-based (encrypted vault + local key file). It works well on macOS where iCloud Drive is available.
-                On other OSes, behavior depends on whether you can sync the vault file and protect the local key file.
+                <code>dotkc export &lt;spec&gt; --unsafe-values</code> to export dotenv lines.
               </p>
             </details>
             <details>
               <summary>Does dotkc create backups?</summary>
               <p>
-                Yes. Before overwriting the vault file, dotkc creates a backup (e.g.
-                <code>dotkc.vault.bak-20260213-165627415</code>) and keeps the most recent <strong>3</strong> backups.
-                You can configure this with <code>DOTKC_BACKUP_KEEP</code> (set <code>0</code> to disable) and <code>DOTKC_BACKUP_DIR</code>.
-                If the backup fails, dotkc refuses to write the new vault.
+                Yes. dotkc creates backups before overwriting the vault and refuses to write if backup fails.
+                Configure with <code>DOTKC_BACKUP_KEEP</code> and <code>DOTKC_BACKUP_DIR</code>.
               </p>
             </details>
             <details>
               <summary>What does dotkc store exactly?</summary>
               <p>
-                Secrets are stored in an encrypted vault file. dotkc never stores secrets in your git repo unless you explicitly put them there.
-                The per-machine local key file is required to decrypt the vault.
+                Secrets are stored in an encrypted vault file. The per-machine local key file is required to decrypt.
               </p>
             </details>
-          </div>
-        </div>
-      </section>
-
-      <section id="compare" class="section section--tinted">
-        <div class="container">
-          <h2>dotkc vs common secret tools</h2>
-          <p class="lead">dotkc is intentionally small. Here’s how it compares in practice.</p>
-
-          <div class="grid3" style="margin-top: 16px">
-            <div class="card">
-              <h3>dotkc</h3>
-              <ul>
-                <li>Encrypted vault file + local key (great for 1–3 personal machines).</li>
-                <li>Optimized for <strong>env injection</strong>: <code>dotkc run ... -- &lt;cmd&gt;</code>.</li>
-                <li>Agent-friendly structured output (<code>--openclaw</code>).</li>
-              </ul>
-            </div>
-            <div class="card">
-              <h3>1Password CLI (<code>op</code>)</h3>
-              <ul>
-                <li>Full password manager ecosystem: sharing, permissions, recovery, audit (best for teams).</li>
-                <li>Great integrations, but heavier setup and account dependency.</li>
-              </ul>
-            </div>
-            <div class="card">
-              <h3>Cloud secrets (AWS/GCP)</h3>
-              <ul>
-                <li>Production-grade governance and IAM.</li>
-                <li>Overkill for personal local dev; requires cloud access and more config.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="notes" class="section">
-        <div class="container">
-          <h2>Notes</h2>
-
-          <div class="two" style="margin-top: 12px">
-            <div class="block">
-              <h3>Machine B (SSH host) bootstrap</h3>
-              <p>
-                If your OpenClaw host is a separate machine, copy the key file over (securely) and install it:
-              </p>
-              <pre><code># on machine A
-cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
-
-# verify on machine B
-ssh user@machine-b 'dotkc status'
-
-# if something is wrong
-ssh user@machine-b 'dotkc doctor'</code></pre>
-              <p class="micro">If you run <code>dotkc init</code> on machine B, it will create a NEW key that cannot decrypt an existing vault encrypted with a different key.</p>
-            </div>
-            <div class="block">
-              <h3>Backups + sync conflicts (P0 safety)</h3>
-              <p>
-                Before overwriting the vault, dotkc creates a backup and refuses to write if backup fails.
-                If the vault file changes on disk during an operation (iCloud sync conflict), dotkc refuses to overwrite and asks you to retry.
-              </p>
-              <pre><code># defaults
-DOTKC_BACKUP_KEEP=3
-
-# disable backups
-DOTKC_BACKUP_KEEP=0
-
-# store backups in a separate directory
-DOTKC_BACKUP_DIR=/path/to/dir</code></pre>
-              <p class="micro">Backup filenames look like <code>dotkc.vault.bak-YYYYMMDD-HHMMSSmmm</code>.</p>
-            </div>
-          </div>
-
-          <div class="two" style="margin-top: 12px">
-            <div class="block">
-              <h3>Use cases</h3>
-
-              <p class="micro"><strong>1) Organize secrets by project + env</strong></p>
-              <pre><code># stable naming helps reuse + automation
-# service   category        KEY
-
-dotkc set vercel acme-app-dev CLERK_SECRET_KEY</code></pre>
-
-              <p class="micro"><strong>2) Run commands with injected env (recommended)</strong></p>
-              <pre><code># avoid exporting secrets into your shell
-
-dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
-
-              <p class="micro"><strong>3) Inspect safely (redacted) / export only when needed</strong></p>
-              <pre><code># inspect (redacted)
-dotkc run vercel:acme-app-dev
-
-# export dotenv lines (redacted)
-dotkc export vercel:acme-app-dev
-
-# full values only when you must
-# dotkc export vercel:acme-app-dev --unsafe-values</code></pre>
-
-              <p class="micro"><strong>4) Find keys without printing values</strong></p>
-              <pre><code>dotkc search clerk
-# dotkc search clerk --json</code></pre>
-
-              <p class="micro"><strong>5) Duplicate or rename environments</strong></p>
-              <pre><code># dev → prod
-dotkc copy vercel:acme-app-dev vercel:acme-app-prod
-
-# move/rename
-dotkc move vercel:acme-app-prod fly.io:acme-app-prod</code></pre>
-
-              <p class="micro"><strong>6) OpenClaw / agent automation</strong></p>
-              <pre><code># machine-readable help and status
-dotkc --help --openclaw
-
-dotkc status --openclaw
-
-dotkc doctor --openclaw
-
-# allowlist-driven secret resolution
-# dotkc.spec contains NO values
-
-dotkc run --spec-file ./dotkc.spec --openclaw</code></pre>
-            </div>
-            <div class="block">
-              <h3>pnpm note</h3>
-              <p>
-                Vault backend is pure Node (no native addons), so global install should be straightforward.
-              </p>
-              <pre><code>pnpm add -g dotkc</code></pre>
-            </div>
-          </div>
-
-          <div class="links" style="margin-top: 24px">
-            <a href="https://github.com/steven-zhc/dotkc">GitHub repo &rarr;</a>
-            <a href="https://www.npmjs.com/package/dotkc">npm package &rarr;</a>
-            <a href="https://github.com/steven-zhc/dotkc/issues">Issues &rarr;</a>
           </div>
         </div>
       </section>
