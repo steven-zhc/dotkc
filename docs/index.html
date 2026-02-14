@@ -518,7 +518,10 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
   "tool": "dotkc",
   "purpose": "Local-first secrets vault + env injection designed for OpenClaw automation",
   "agentMode": {
-    "switches": ["--openclaw", "--format openclaw"],
+    "switches": [
+      "--openclaw",
+      "--format openclaw"
+    ],
     "envelope": {
       "format": "openclaw",
       "command": "string",
@@ -553,72 +556,72 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
   "commands": [
     {
       "name": "init",
-      "usage": "dotkc init [--vault <path>] [--key <path>]",
+      "usage": "dotkc init [--vault &lt;path&gt;] [--key &lt;path&gt;]",
       "desc": "Initialize vault + local key (prompts before overwriting)."
     },
     {
       "name": "status",
-      "usage": "dotkc status [--vault <path>] [--key <path>]",
+      "usage": "dotkc status [--vault &lt;path&gt;] [--key &lt;path&gt;]",
       "desc": "Print JSON status (paths + canDecrypt)."
     },
     {
       "name": "doctor",
-      "usage": "dotkc doctor [--vault <path>] [--key <path>] [--json]",
+      "usage": "dotkc doctor [--vault &lt;path&gt;] [--key &lt;path&gt;] [--json]",
       "desc": "Run diagnostics and suggest fixes."
     },
     {
       "name": "key install",
-      "usage": "cat ~/.dotkc/key | dotkc key install [--key <path>] [--force]",
+      "usage": "cat ~/.dotkc/key | dotkc key install [--key &lt;path&gt;] [--force]",
       "desc": "Install key from stdin (refuses overwrite unless --force)."
     },
     {
       "name": "set",
-      "usage": "dotkc set <service> <category> <KEY> [value|-]",
+      "usage": "dotkc set &lt;service&gt; &lt;category&gt; &lt;KEY&gt; [value|-]",
       "desc": "Set a secret (prompt hidden if value omitted)."
     },
     {
       "name": "get",
-      "usage": "dotkc get <service> <category> <KEY>",
+      "usage": "dotkc get &lt;service&gt; &lt;category&gt; &lt;KEY&gt;",
       "desc": "Print secret value to stdout."
     },
     {
       "name": "del",
-      "usage": "dotkc del <service> <category> <KEY>",
+      "usage": "dotkc del &lt;service&gt; &lt;category&gt; &lt;KEY&gt;",
       "desc": "Delete a secret."
     },
     {
       "name": "list",
-      "usage": "dotkc list <service> [category]",
+      "usage": "dotkc list &lt;service&gt; [category]",
       "desc": "List categories or keys."
     },
     {
       "name": "search",
-      "usage": "dotkc search <query> [--json]",
+      "usage": "dotkc search &lt;query&gt; [--json]",
       "desc": "Search keys by substring (no values)."
     },
     {
       "name": "export",
-      "usage": "dotkc export <spec>[,<spec>...] [--unsafe-values]",
+      "usage": "dotkc export &lt;spec&gt;[,&lt;spec&gt;...] [--unsafe-values]",
       "desc": "Export dotenv lines (redacted by default)."
     },
     {
       "name": "copy",
-      "usage": "dotkc copy <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]",
+      "usage": "dotkc copy &lt;srcService&gt;:&lt;srcCategory&gt; &lt;dstService&gt;:&lt;dstCategory&gt; [--force]",
       "desc": "Copy a category."
     },
     {
       "name": "move",
-      "usage": "dotkc move <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]",
+      "usage": "dotkc move &lt;srcService&gt;:&lt;srcCategory&gt; &lt;dstService&gt;:&lt;dstCategory&gt; [--force]",
       "desc": "Move a category."
     },
     {
       "name": "import",
-      "usage": "dotkc import <service> <category> [dotenv_file]",
+      "usage": "dotkc import &lt;service&gt; &lt;category&gt; [dotenv_file]",
       "desc": "Interactive import from .env."
     },
     {
       "name": "run",
-      "usage": "dotkc run [options] <spec>[,<spec>...] [-- <cmd> ...]",
+      "usage": "dotkc run [options] &lt;spec&gt;[,&lt;spec&gt;...] [-- &lt;cmd&gt; ...]",
       "desc": "Inspect (redacted) or execute with injected env."
     }
   ],
@@ -634,11 +637,11 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
       "specFormat": [
         "one spec per line",
         "supports comments with #",
-        "wildcard: <service>:<category>",
-        "exact: <service>:<category>:<KEY>"
+        "wildcard: &lt;service&gt;:&lt;category&gt;",
+        "exact: &lt;service&gt;:&lt;category&gt;:&lt;KEY&gt;"
       ],
       "inspect": "dotkc run --spec-file ./dotkc.spec --openclaw",
-      "run": "dotkc run --spec-file ./dotkc.spec -- <cmd>"
+      "run": "dotkc run --spec-file ./dotkc.spec -- &lt;cmd&gt;"
     },
     "manage": {
       "examples": [
@@ -654,7 +657,8 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
     "Never print full values unless explicitly needed (--unsafe-values).",
     "Anyone with vault + key can decrypt; protect ~/.dotkc/key."
   ]
-}</code></pre>
+}
+</code></pre>
           </div>
 
           <div id="agent-commands"></div>
