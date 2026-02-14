@@ -171,6 +171,9 @@ Interactive picker to import keys from a dotenv file (default: `.env`).
 # inspect mode (no command): prints redacted values by default
 dotkc run [options] <spec>[,<spec>...]
 
+# agent-friendly JSON (inspect mode)
+dotkc run --format openclaw <spec>[,<spec>...]
+
 # exec mode: inject env and run a command
 dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
 ```
@@ -183,6 +186,7 @@ Spec formats:
 Run options:
 
 - `--json` inspect mode: output JSON (redacted unless `--unsafe-values`)
+- `--format openclaw` inspect mode: structured JSON for agents (`{ format, redacted, specs, env }`)
 - `--unsafe-values` inspect mode: print full secret values (unsafe)
 - `--dotenv` / `--dotenv-file <path>` / `--dotenv-override` / `--no-default-dotenv`
 

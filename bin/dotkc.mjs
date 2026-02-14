@@ -67,6 +67,9 @@ Usage:
   dotkc run [options] <spec>[,<spec>...] -- <cmd> [args...]
   dotkc run [options] <spec>[,<spec>...]
 
+  # Agent-friendly inspect output:
+  dotkc run --format openclaw <spec>[,<spec>...]
+
 Vault options:
   --vault <path>          Vault file path (default: DOTKC_VAULT_PATH or iCloud Drive default)
   --key <path>            Key file path (default: DOTKC_VAULT_KEY_PATH or ~/.dotkc/key)
@@ -74,6 +77,7 @@ Vault options:
 Run options (vault):
   --json                  Inspect mode: output JSON instead of KEY=VALUE lines
   --unsafe-values         Inspect mode: print full secret values (unsafe)
+  --format <name>         Inspect mode: structured output format (e.g. openclaw)
 
   --dotenv                Load dotenv files if present (.env then .env.local)
   --no-default-dotenv     When using --dotenv, do not auto-load .env and .env.local (only --dotenv-file)
@@ -834,6 +838,7 @@ if (VAULT_COMMANDS.has(cmd)) {
     const inspect = sep === -1;
     let unsafeValues = false;
     let jsonOut = false;
+    let format = null;
 
     const specParts = [];
     for (let i = 0; i < pre.length; i++) {
@@ -864,6 +869,12 @@ if (VAULT_COMMANDS.has(cmd)) {
       }
       if (a === '--json') {
         jsonOut = true;
+        continue;
+      }
+      if (a === '--format') {
+        const f = pre[++i];
+        if (!f) die('Missing value for --format', 2);
+        format = f;
         continue;
       }
       specParts.push(a);
@@ -936,6 +947,28 @@ if (VAULT_COMMANDS.has(cmd)) {
         console.error('---');
       };
 
+      if (format) {
+        if (format !== 'openclaw') die(`Unknown format: ${format}`, 2);
+        if (unsafeValues) warnUnsafe();
+
+        const envOut = {};
+        for (const k of keys) envOut[k] = unsafeValues ? resolved[k] : redact(resolved[k]);
+
+        const out = {
+          format: 'openclaw',
+          redacted: !unsafeValues,
+          specs: specs.map((s) => {
+            if (s.kind === 'exact') return `${s.service}:${s.category}:${s.key}`;
+            if (s.kind === 'wildcard') return `${s.service}:${s.category}`;
+            return s.input;
+          }),
+          env: envOut,
+        };
+
+        process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+        process.exit(0);
+      }
+
       if (jsonOut) {
         const obj = {};
         for (const k of keys) obj[k] = unsafeValues ? resolved[k] : redact(resolved[k]);
@@ -951,6 +984,7 @@ if (VAULT_COMMANDS.has(cmd)) {
       process.exit(0);
     }
 
+    if (format) die('The --format flag is only supported in inspect mode (omit "-- <cmd>").', 2);
     if (jsonOut || unsafeValues) die('Inspect flags (--json/--unsafe-values) require omitting "-- <cmd>".', 2);
     if (!execCmd) usage(1);
 
