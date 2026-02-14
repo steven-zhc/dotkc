@@ -122,6 +122,8 @@ Run options (vault):
   --dotenv-file <path>    Load a specific dotenv file (can repeat)
   --dotenv-override       Allow dotenv to override existing process.env
 
+  --spec-file <path>      Load specs from a file (one per line; supports comments with #)
+
 Examples:
   dotkc init
   dotkc status
@@ -919,6 +921,8 @@ if (VAULT_COMMANDS.has(cmd)) {
     let dotenvOverride = false;
     let noDefaultDotenv = false;
 
+    const specFiles = [];
+
     const inspect = sep === -1;
     let unsafeValues = false;
     let jsonOut = false;
@@ -940,6 +944,12 @@ if (VAULT_COMMANDS.has(cmd)) {
         if (!p) die('Missing value for --dotenv-file', 2);
         dotenvFiles.push(p);
         enableDotenv = true;
+        continue;
+      }
+      if (a === '--spec-file') {
+        const p = pre[++i];
+        if (!p) die('Missing value for --spec-file', 2);
+        specFiles.push(p);
         continue;
       }
       if (a === '--no-default-dotenv') {
@@ -964,7 +974,19 @@ if (VAULT_COMMANDS.has(cmd)) {
       specParts.push(a);
     }
 
-    const specStr = specParts.join(' ').trim();
+    const readSpecFile = (fp) => {
+      const abs = path.isAbsolute(fp) ? fp : path.join(process.cwd(), fp);
+      if (!fs.existsSync(abs)) die(`Spec file not found: ${abs}`, 2);
+      const raw = fs.readFileSync(abs, 'utf8');
+      return raw
+        .split(/\r?\n/)
+        .map((l) => l.replace(/#.*/, '').trim())
+        .filter(Boolean)
+        .flatMap((l) => l.split(',').map((x) => x.trim()).filter(Boolean));
+    };
+
+    const fileSpecs = specFiles.flatMap(readSpecFile);
+    const specStr = [...fileSpecs, ...specParts].join(' ').trim();
     if (!specStr) usage(1);
 
     const specs = specStr
@@ -972,6 +994,9 @@ if (VAULT_COMMANDS.has(cmd)) {
       .map(s => s.trim())
       .filter(Boolean)
       .map(parseSpec);
+
+    // inherit global openclaw output mode (if provided via --openclaw/--format)
+    if (!format && GLOBAL_FORMAT === 'openclaw') format = 'openclaw';
 
     const invalid = specs.find(s => s.kind === 'invalid');
     if (invalid) {

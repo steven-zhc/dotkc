@@ -189,6 +189,15 @@ Run options:
 - `--format openclaw` inspect mode: structured JSON for agents (`{ format, redacted, specs, env }`)
 - `--unsafe-values` inspect mode: print full secret values (unsafe)
 - `--dotenv` / `--dotenv-file <path>` / `--dotenv-override` / `--no-default-dotenv`
+- `--spec-file <path>` load specs from a file (one per line; supports comments with `#`)
+
+Spec-file example:
+
+```txt
+# env allowlist for an agent
+fly.io:acme-app-dev
+vercel:acme-app-dev:CLERK_SECRET_KEY
+```
 
 ---
 
