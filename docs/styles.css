@@ -85,11 +85,11 @@ a:hover { color: var(--accent); }
 .mode-switch {
   display: inline-flex;
   gap: 6px;
-  margin-top: 16px;
+  margin-top: 0;
   padding: 6px;
   border: 1px solid var(--dim);
   border-radius: 999px;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--bg) 85%, var(--surface));
 }
 .mode-switch__btn {
   appearance: none;
