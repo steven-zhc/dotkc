@@ -57,6 +57,8 @@ Usage:
   dotkc list <service> [category]
   dotkc search <query> [--json]
   dotkc export <spec>[,<spec>...] [--unsafe-values]
+  dotkc copy <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]
+  dotkc move <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]
   dotkc import <service> <category> [dotenv_file]
 
   # Run a command with secrets injected:
@@ -229,6 +231,12 @@ function parseSpec(s) {
   return { kind: 'exact', service, category, key };
 }
 
+function parseSvcCat(s) {
+  const sp = parseSpec(s);
+  if (sp.kind !== 'wildcard') return null;
+  return { service: sp.service, category: sp.category };
+}
+
 const argv = process.argv.slice(2);
 if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') usage(argv.length ? 0 : 1);
 
@@ -249,7 +257,7 @@ function parseVaultKeyString(s) {
 }
 
 // Commands that operate on the encrypted vault
-const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'search', 'export', 'import', 'run']);
+const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'search', 'export', 'copy', 'move', 'import', 'run']);
 
 function vaultPathsFromEnvOrArgs({ vaultArg, keyArg } = {}) {
   const vaultPath = expandHome(vaultArg ?? process.env.DOTKC_VAULT_PATH ?? defaultVaultPath());
@@ -724,6 +732,51 @@ if (VAULT_COMMANDS.has(cmd)) {
     for (const k of keys) {
       process.stdout.write(`${k}=${unsafeValues ? resolved[k] : redact(resolved[k])}\n`);
     }
+    process.exit(0);
+  }
+
+  if (sub === 'copy' || sub === 'move') {
+    const [srcStr, dstStr, ...rest] = args;
+    const force = rest.includes('--force');
+    if (!srcStr || !dstStr) usage(1);
+
+    const src = parseSvcCat(srcStr);
+    const dst = parseSvcCat(dstStr);
+
+    if (!src || !dst) {
+      die(
+        `Invalid spec. Expected: <service>:<category>\n` +
+          `Example: dotkc ${sub} fly.io:acme-app-dev fly.io:acme-app-prod`,
+        2,
+      );
+    }
+
+    const srcObj = data?.[src.service]?.[src.category] ?? null;
+    if (!srcObj || Object.keys(srcObj).length === 0) {
+      die(`No secrets matched: ${src.service}:${src.category}`, 3);
+    }
+
+    data[dst.service] ??= {};
+
+    const dstExists = Boolean(data?.[dst.service]?.[dst.category]) && Object.keys(data[dst.service][dst.category] ?? {}).length > 0;
+    if (dstExists && !force) {
+      die(
+        `Destination already exists: ${dst.service}:${dst.category}\n` +
+          `Refusing to overwrite. Re-run with --force to overwrite destination category.`,
+        2,
+      );
+    }
+
+    // overwrite destination
+    data[dst.service][dst.category] = { ...srcObj };
+
+    if (sub === 'move') {
+      delete data[src.service]?.[src.category];
+      if (data[src.service] && Object.keys(data[src.service]).length === 0) delete data[src.service];
+    }
+
+    save(data);
+    console.log('OK');
     process.exit(0);
   }
 

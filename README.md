@@ -141,6 +141,22 @@ Exports matching keys as dotenv-style `KEY=VALUE` lines.
 - By default values are **redacted** (safe for inspection).
 - Use `--unsafe-values` to output full values (unsafe; keep out of logs and git).
 
+### `dotkc copy`
+
+```bash
+dotkc copy <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]
+```
+
+Copies an entire category to a new location. Refuses to overwrite unless `--force`.
+
+### `dotkc move`
+
+```bash
+dotkc move <srcService>:<srcCategory> <dstService>:<dstCategory> [--force]
+```
+
+Moves an entire category to a new location (copy then delete). Refuses to overwrite unless `--force`.
+
 ### `dotkc import`
 
 ```bash
