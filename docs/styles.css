@@ -81,6 +81,36 @@ a:hover { color: var(--accent); }
   font-weight: 500;
 }
 
+/* ---- mode switch ---- */
+.mode-switch {
+  display: inline-flex;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 6px;
+  border: 1px solid var(--dim);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.mode-switch__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.mode-switch__btn:hover { color: var(--text); }
+.mode-switch__btn.is-active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+
+body[data-guide="human"] .guide--agent { display: none; }
+body[data-guide="agent"] .guide--human { display: none; }
+
 /* ---- hero ---- */
 .hero { padding: 72px 0 40px; }
 .hero__grid {
