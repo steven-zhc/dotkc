@@ -121,6 +121,17 @@ body[data-guide="agent"] .human-only { display: none; }
 /* Raw JSON mode removed: keep hidden */
 .guide--json { display: none; }
 
+/* ---- subbar (mode switch under topbar) ---- */
+.subbar {
+  border-bottom: 1px solid var(--dim);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+.subbar__inner {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 0;
+}
+
 /* ---- terminal-ish blocks ---- */
 .terminal {
   border: 1px solid var(--dim);
