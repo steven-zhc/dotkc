@@ -366,11 +366,17 @@ DOTKC_BACKUP_DIR=/path/to/dir</code></pre>
             </div>
             <div class="block">
               <h3>Find / reorganize secrets fast</h3>
-              <pre><code>dotkc search clerk
+              <p class="micro">
+                <code>search</code> shows <strong>names only</strong> (no values). <code>copy</code>/<code>move</code> operate on a whole
+                <code>service:category</code> and <strong>do copy/move the values</strong> inside that category.
+              </p>
+              <pre><code># find keys by substring (no values printed)
+dotkc search clerk
 
-# dev → prod
+# duplicate an environment (dev → prod): copies all keys + values in that category
 dotkc copy vercel:acme-app-dev vercel:acme-app-prod
 
+# rename/move a category: moves keys + values
 dotkc move vercel:acme-app-prod fly.io:acme-app-prod</code></pre>
             </div>
           </div>
