@@ -18,13 +18,19 @@
           <span class="brand__mark">dotkc</span>
           <span class="brand__tag">Encrypted vault secrets for OpenClaw</span>
         </a>
-        <nav class="nav">
+        <nav class="nav" data-guide-panel="human">
           <a href="#why">Why</a>
           <a href="#how">How</a>
           <a href="#compare">Compare</a>
           <a href="#quickstart">Quickstart</a>
           <a href="#usecases">Use cases</a>
           <a href="#faq">FAQ</a>
+          <a class="nav__cta" href="https://github.com/steven-zhc/dotkc">GitHub</a>
+        </nav>
+
+        <nav class="nav" data-guide-panel="agent">
+          <a href="#agent">Agent JSON</a>
+          <a href="#agent">Commands</a>
           <a class="nav__cta" href="https://github.com/steven-zhc/dotkc">GitHub</a>
         </nav>
 
@@ -492,7 +498,7 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
 
       <div class="guide guide--agent" data-guide-panel="agent">
       <!-- agent guide is JSON-first and designed for OpenClaw parsing -->
-      <section id="why" class="section section--tinted">
+      <section id="agent" class="section section--tinted">
         <div class="container">
           <h2>OpenClaw / agent guide (JSON-first)</h2>
           <p class="lead">This mode is designed for OpenClaw to parse directly.</p>
