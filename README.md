@@ -10,6 +10,8 @@
 
 Usage manual + best practices: **https://dotkc.hczhang.com/**
 
+OpenClaw plugin (typed tools integration): **https://openclaw-dotkc.hczhang.com/**
+
 ---
 
 ## Install
