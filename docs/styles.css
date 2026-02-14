@@ -109,11 +109,10 @@ a:hover { color: var(--accent); }
 }
 
 body[data-guide="human"] .guide--agent { display: none; }
-body[data-guide="human"] .guide--json { display: none; }
 body[data-guide="agent"] .guide--human { display: none; }
-body[data-guide="agent"] .guide--json { display: none; }
-body[data-guide="json"] .guide--human { display: none; }
-body[data-guide="json"] .guide--agent { display: none; }
+
+/* Raw JSON mode removed: keep hidden */
+.guide--json { display: none; }
 
 /* ---- terminal-ish blocks ---- */
 .terminal {

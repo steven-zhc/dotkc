@@ -51,7 +51,6 @@
             <div class="mode-switch" role="tablist" aria-label="Documentation mode">
               <button class="mode-switch__btn" data-guide="human" role="tab" aria-selected="true" type="button">Human guide</button>
               <button class="mode-switch__btn" data-guide="agent" role="tab" aria-selected="false" type="button">OpenClaw / agent guide</button>
-              <button class="mode-switch__btn" data-guide="json" role="tab" aria-selected="false" type="button">Raw JSON</button>
             </div>
           </div>
 
@@ -517,60 +516,46 @@ DOTKC_BACKUP_DIR=/path/to/dir</code></pre>
       </div>
 
       <div class="guide guide--agent" data-guide-panel="agent">
-      <!-- agent guide is terminal-first; for raw machine-readable schema use the Raw JSON tab -->
+      <!-- agent guide is JSON-first and designed for OpenClaw parsing -->
       <section id="why" class="section section--tinted">
         <div class="container">
-          <h2>OpenClaw / agent guide</h2>
-          <p class="lead">Terminal-first. Minimal words. Stable JSON.</p>
+          <h2>OpenClaw / agent guide (JSON-first)</h2>
+          <p class="lead">This mode is designed for OpenClaw to parse directly.</p>
 
           <div class="terminal" style="margin-top: 16px">
             <div class="terminal__title">
               <span class="terminal__dots"><span class="terminal__dot"></span><span class="terminal__dot"></span><span class="terminal__dot"></span></span>
-              <span>Command discovery (agent)</span>
+              <span>openclaw.json</span>
             </div>
-            <pre><code># Ask dotkc to describe itself (machine-readable)
-dotkc --help --openclaw
-
-# Check vault/key health
-dotkc status --openclaw
-
-# Diagnose common issues (permissions, key mismatch, corrupt vault)
-dotkc doctor --openclaw</code></pre>
-          </div>
-
-          <div class="terminal" style="margin-top: 16px">
-            <div class="terminal__title">
-              <span class="terminal__dots"><span class="terminal__dot"></span><span class="terminal__dot"></span><span class="terminal__dot"></span></span>
-              <span>Allowlist pattern (recommended)</span>
-            </div>
-            <pre><code># dotkc.spec (commit this; contains NO values)
-# one spec per line; comments allowed
-fly.io:acme-app-dev
-vercel:acme-app-dev:CLERK_SECRET_KEY
-
-# Inspect as OpenClaw JSON (redacted)
-dotkc run --spec-file ./dotkc.spec --openclaw
-
-# Run with injected env
-dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
-          </div>
-
-          <div class="terminal" style="margin-top: 16px">
-            <div class="terminal__title">
-              <span class="terminal__dots"><span class="terminal__dot"></span><span class="terminal__dot"></span><span class="terminal__dot"></span></span>
-              <span>Structured inspect payload</span>
-            </div>
-            <pre><code># Redacted JSON payload for agents
-dotkc run --format openclaw fly.io:acme-app-dev
-
-# Full values only when you must:
-# dotkc run --format openclaw --unsafe-values fly.io:acme-app-dev</code></pre>
-          </div>
-
-          <div class="callout" style="margin-top: 16px">
-            <strong>Why <code>--openclaw</code>?</strong>
-            It returns a stable JSON envelope: <code>{ format, command, ok, code, data, warnings, errors }</code>.
-            OpenClaw can parse it reliably and can self-discover commands via <code>dotkc --help --openclaw</code>.
+            <pre><code>{
+  "tool": "dotkc",
+  "switch": "--openclaw (alias: --format openclaw)",
+  "envelope": {
+    "format": "openclaw",
+    "command": "string",
+    "ok": "boolean",
+    "code": "number",
+    "data": "any",
+    "warnings": "string[]",
+    "errors": "string[]"
+  },
+  "discovery": {
+    "cmd": "dotkc --help --openclaw",
+    "read": "data.commands + data.usageText"
+  },
+  "workflows": {
+    "health": [
+      "dotkc status --openclaw",
+      "dotkc doctor --openclaw"
+    ],
+    "allowlist": {
+      "file": "./dotkc.spec",
+      "fileFormat": "one spec per line; comments (#) allowed",
+      "inspect": "dotkc run --spec-file ./dotkc.spec --openclaw",
+      "run": "dotkc run --spec-file ./dotkc.spec -- <cmd>"
+    }
+  }
+}</code></pre>
           </div>
         </div>
       </section>
@@ -578,11 +563,19 @@ dotkc run --format openclaw fly.io:acme-app-dev
       <section id="quickstart" class="section section--tinted">
         <div class="container">
           <h2>Quickstart (agent view)</h2>
-          <div class="steps">
-            <div class="step"><div class="step__body"><h3>Install</h3><pre><code>npm i -g dotkc</code></pre></div></div>
-            <div class="step"><div class="step__body"><h3>Machine B bootstrap</h3><pre><code>cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
-ssh user@machine-b 'dotkc doctor --openclaw'</code></pre></div></div>
-            <div class="step"><div class="step__body"><h3>Run with allowlist</h3><pre><code>dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre></div></div>
+          <div class="terminal" style="margin-top: 16px">
+            <div class="terminal__title">
+              <span class="terminal__dots"><span class="terminal__dot"></span><span class="terminal__dot"></span><span class="terminal__dot"></span></span>
+              <span>commands</span>
+            </div>
+            <pre><code>npm i -g dotkc
+
+# machine B
+cat ~/.dotkc/key | ssh user@machine-b 'dotkc key install'
+ssh user@machine-b 'dotkc doctor --openclaw'
+
+# run with allowlist
+dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
           </div>
         </div>
       </section>
@@ -642,61 +635,7 @@ Cloud secret managers:
       </section>
       </div>
 
-      <div class="guide guide--json" data-guide-panel="json">
-      <section class="section">
-        <div class="container">
-          <h2>Raw JSON (for OpenClaw parsing)</h2>
-          <p class="lead">Copy/paste this into an agent. It describes the OpenClaw envelope + workflows.</p>
-
-          <div class="terminal" style="margin-top: 16px">
-            <div class="terminal__title">
-              <span class="terminal__dots"><span class="terminal__dot"></span><span class="terminal__dot"></span><span class="terminal__dot"></span></span>
-              <span>openclaw.json</span>
-            </div>
-            <pre><code>{
-  "tool": "dotkc",
-  "agentMode": {
-    "switches": ["--openclaw", "--format openclaw"],
-    "envelope": {
-      "format": "openclaw",
-      "command": "string",
-      "ok": "boolean",
-      "code": "number",
-      "data": "any",
-      "warnings": "string[]",
-      "errors": "string[]"
-    },
-    "discovery": [
-      {
-        "cmd": "dotkc --help --openclaw",
-        "read": "data.commands + data.usageText"
-      }
-    ],
-    "workflows": [
-      {
-        "name": "health",
-        "steps": [
-          "dotkc status --openclaw",
-          "dotkc doctor --openclaw"
-        ]
-      },
-      {
-        "name": "allowlist",
-        "files": {
-          "dotkc.spec": "one spec per line; comments (#) allowed"
-        },
-        "steps": [
-          "dotkc run --spec-file ./dotkc.spec --openclaw",
-          "dotkc run --spec-file ./dotkc.spec -- &lt;cmd&gt;"
-        ]
-      }
-    ]
-  }
-}</code></pre>
-          </div>
-        </div>
-      </section>
-      </div>
+      <!-- Raw JSON mode removed (agent guide is JSON-first). -->
     </main>
 
     <script defer src="./mode.js"></script>

@@ -3,7 +3,7 @@
   const buttons = Array.from(document.querySelectorAll('.mode-switch__btn'));
 
   function setGuide(next) {
-    const g = next === 'agent' ? 'agent' : next === 'json' ? 'json' : 'human';
+    const g = next === 'agent' ? 'agent' : 'human';
     document.body.dataset.guide = g;
     try { localStorage.setItem(KEY, g); } catch {}
 
