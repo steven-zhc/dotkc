@@ -485,17 +485,52 @@ DOTKC_BACKUP_DIR=/path/to/dir</code></pre>
 
           <div class="two" style="margin-top: 12px">
             <div class="block">
-              <h3>Best practices</h3>
-              <ul>
-                <li>Keep <strong>category</strong> stable and descriptive (project + env).</li>
-                <li>Prefer <code>dotkc run &lt;service&gt;:&lt;category&gt; -- &lt;cmd&gt;</code> instead of exporting env in your shell.</li>
-                <li>Use <code>--unsafe-values</code> only on a trusted personal machine.</li>
-                <li>Back up and protect the local key file; anyone with vault + key can decrypt.</li>
-                <li>Use <code>dotkc search</code> to locate keys across services/categories without printing values.</li>
-                <li>Use <code>dotkc copy</code> / <code>dotkc move</code> to duplicate or rename an environment (e.g. dev → prod) without re-entering values.</li>
-                <li>For agents, use <code>dotkc run --format openclaw &lt;spec&gt;</code> to get a structured JSON payload.</li>
-                <li>Use <code>--spec-file</code> to keep a checked-in allowlist of required secrets (no values) for an agent workflow.</li>
-              </ul>
+              <h3>Use cases</h3>
+
+              <p class="micro"><strong>1) Organize secrets by project + env</strong></p>
+              <pre><code># stable naming helps reuse + automation
+# service   category        KEY
+
+dotkc set vercel acme-app-dev CLERK_SECRET_KEY</code></pre>
+
+              <p class="micro"><strong>2) Run commands with injected env (recommended)</strong></p>
+              <pre><code># avoid exporting secrets into your shell
+
+dotkc run vercel:acme-app-dev -- pnpm dev</code></pre>
+
+              <p class="micro"><strong>3) Inspect safely (redacted) / export only when needed</strong></p>
+              <pre><code># inspect (redacted)
+dotkc run vercel:acme-app-dev
+
+# export dotenv lines (redacted)
+dotkc export vercel:acme-app-dev
+
+# full values only when you must
+# dotkc export vercel:acme-app-dev --unsafe-values</code></pre>
+
+              <p class="micro"><strong>4) Find keys without printing values</strong></p>
+              <pre><code>dotkc search clerk
+# dotkc search clerk --json</code></pre>
+
+              <p class="micro"><strong>5) Duplicate or rename environments</strong></p>
+              <pre><code># dev → prod
+dotkc copy vercel:acme-app-dev vercel:acme-app-prod
+
+# move/rename
+dotkc move vercel:acme-app-prod fly.io:acme-app-prod</code></pre>
+
+              <p class="micro"><strong>6) OpenClaw / agent automation</strong></p>
+              <pre><code># machine-readable help and status
+dotkc --help --openclaw
+
+dotkc status --openclaw
+
+dotkc doctor --openclaw
+
+# allowlist-driven secret resolution
+# dotkc.spec contains NO values
+
+dotkc run --spec-file ./dotkc.spec --openclaw</code></pre>
             </div>
             <div class="block">
               <h3>pnpm note</h3>
