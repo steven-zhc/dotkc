@@ -109,7 +109,39 @@ a:hover { color: var(--accent); }
 }
 
 body[data-guide="human"] .guide--agent { display: none; }
+body[data-guide="human"] .guide--json { display: none; }
 body[data-guide="agent"] .guide--human { display: none; }
+body[data-guide="agent"] .guide--json { display: none; }
+body[data-guide="json"] .guide--human { display: none; }
+body[data-guide="json"] .guide--agent { display: none; }
+
+/* ---- terminal-ish blocks ---- */
+.terminal {
+  border: 1px solid var(--dim);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+.terminal__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.terminal__dots {
+  display: inline-flex;
+  gap: 6px;
+}
+.terminal__dot { width: 10px; height: 10px; border-radius: 999px; background: var(--dim); }
+.terminal__dot:nth-child(1) { background: #ff5f57; }
+.terminal__dot:nth-child(2) { background: #febc2e; }
+.terminal__dot:nth-child(3) { background: #28c840; }
+.terminal pre { margin: 0; }
+.terminal code { font-family: var(--mono); font-size: 12px; }
 
 /* ---- hero ---- */
 .hero { padding: 72px 0 40px; }
