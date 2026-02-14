@@ -308,7 +308,8 @@ dotkc run vercel:acme-app-dev:CLERK_SECRET_KEY -- node ./app.mjs</code></pre>
             <details>
               <summary>How do I print the full values?</summary>
               <p>
-                Use <code>dotkc run --unsafe-values &lt;spec&gt;</code>. dotkc will print a warning to stderr.
+                Use <code>dotkc run --unsafe-values &lt;spec&gt;</code> (inspect mode) or
+                <code>dotkc export &lt;spec&gt; --unsafe-values</code> to export dotenv lines. dotkc will print a warning to stderr.
               </p>
             </details>
             <details>

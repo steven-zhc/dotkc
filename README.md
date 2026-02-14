@@ -130,6 +130,17 @@ dotkc search <query> [--json]
 
 Search keys by substring across `service/category/KEY`. Never prints secret values.
 
+### `dotkc export`
+
+```bash
+dotkc export <spec>[,<spec>...] [--unsafe-values]
+```
+
+Exports matching keys as dotenv-style `KEY=VALUE` lines.
+
+- By default values are **redacted** (safe for inspection).
+- Use `--unsafe-values` to output full values (unsafe; keep out of logs and git).
+
 ### `dotkc import`
 
 ```bash

@@ -56,6 +56,7 @@ Usage:
 
   dotkc list <service> [category]
   dotkc search <query> [--json]
+  dotkc export <spec>[,<spec>...] [--unsafe-values]
   dotkc import <service> <category> [dotenv_file]
 
   # Run a command with secrets injected:
@@ -248,7 +249,7 @@ function parseVaultKeyString(s) {
 }
 
 // Commands that operate on the encrypted vault
-const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'search', 'import', 'run']);
+const VAULT_COMMANDS = new Set(['init', 'status', 'doctor', 'set', 'get', 'del', 'list', 'search', 'export', 'import', 'run']);
 
 function vaultPathsFromEnvOrArgs({ vaultArg, keyArg } = {}) {
   const vaultPath = expandHome(vaultArg ?? process.env.DOTKC_VAULT_PATH ?? defaultVaultPath());
@@ -653,6 +654,76 @@ if (VAULT_COMMANDS.has(cmd)) {
     }
 
     for (const m of matches) console.log(`${m.service} ${m.category} ${m.key}`);
+    process.exit(0);
+  }
+
+  if (sub === 'export') {
+    let unsafeValues = false;
+    const specParts = [];
+    for (const a of args) {
+      if (a === '--unsafe-values') {
+        unsafeValues = true;
+        continue;
+      }
+      specParts.push(a);
+    }
+
+    const specStr = specParts.join(' ').trim();
+    if (!specStr) usage(1);
+
+    const specs = specStr
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(parseSpec);
+
+    const invalid = specs.find(s => s.kind === 'invalid');
+    if (invalid) {
+      die(
+        `Invalid spec: ${invalid.input}\n` +
+          'Expected: <service>:<category> or <service>:<category>:<KEY>\n' +
+          'Example: dotkc export fly.io:acme-app-dev',
+        2,
+      );
+    }
+
+    const resolved = {};
+
+    for (const sp of specs) {
+      if (sp.kind === 'exact') {
+        const v = data?.[sp.service]?.[sp.category]?.[sp.key];
+        if (v == null) die(`Missing secret: ${sp.service}:${sp.category}:${sp.key}`, 3);
+        resolved[sp.key] = v;
+        continue;
+      }
+
+      const cat = data?.[sp.service]?.[sp.category] ?? null;
+      if (!cat || Object.keys(cat).length === 0) die(`No secrets matched: ${sp.service}:${sp.category}`, 3);
+
+      for (const [k, v] of Object.entries(cat)) {
+        if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) continue;
+        resolved[k] = v;
+      }
+    }
+
+    const redact = (v) => {
+      const s = String(v ?? '');
+      const len = s.length;
+      if (len <= 8) return `*** (len=${len})`;
+      return `${s.slice(0, 4)}…${s.slice(-4)} (len=${len})`;
+    };
+
+    const keys = Object.keys(resolved).sort((a, b) => a.localeCompare(b));
+
+    if (unsafeValues) {
+      console.error('WARNING: Exporting FULL secret values to stdout.');
+      console.error('Consider redirecting directly to a file and keep it out of git.');
+      console.error('---');
+    }
+
+    for (const k of keys) {
+      process.stdout.write(`${k}=${unsafeValues ? resolved[k] : redact(resolved[k])}\n`);
+    }
     process.exit(0);
   }
 
