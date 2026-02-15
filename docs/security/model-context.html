@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dotkc security: model context</title>
+    <meta name="description" content="Why dotkc focuses on keeping secrets out of model context and transcripts" />
+    <link rel="canonical" href="https://dotkc.hczhang.com/security/model-context.html" />
+  </head>
+  <body>
+    <main>
+      <h1>Security: keep secrets out of model context</h1>
+      <p>
+        If a secret is printed to stdout/stderr (or pasted into chat), it can end up in:
+      </p>
+      <ul>
+        <li>model transcripts</li>
+        <li>logs</li>
+        <li>screen recordings / scrollback</li>
+      </ul>
+
+      <h2>dotkc patterns</h2>
+      <ul>
+        <li><strong>Inspect is redacted by default</strong> (use it for sanity checks)</li>
+        <li><strong>Run injects env</strong> into a child process without printing values</li>
+        <li><strong>Spec allowlists</strong> keep secret names out of prompts</li>
+      </ul>
+
+      <h2>What to avoid</h2>
+      <ul>
+        <li>Running <code>dotkc get</code> in agent workflows</li>
+        <li>Using <code>--unsafe-values</code> unless absolutely necessary</li>
+      </ul>
+
+      <p><a href="/">Back to dotkc manual</a></p>
+    </main>
+  </body>
+</html>
