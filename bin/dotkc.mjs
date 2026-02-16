@@ -52,6 +52,11 @@ function sendOpenClaw(command, { ok, code = 0, data = null, warnings = [], error
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');
 }
 
+function okOpenClaw(command, data = null, { code = 0, warnings = [] } = {}) {
+  sendOpenClaw(command, { ok: true, code, data, warnings, errors: [] });
+  process.exit(code);
+}
+
 function die(msg, code = 1) {
   if (GLOBAL_FORMAT === 'openclaw') {
     sendOpenClaw('error', { ok: false, code, errors: [String(msg ?? 'Error')] });
@@ -482,6 +487,9 @@ if (VAULT_COMMANDS.has(cmd)) {
 
   if (sub === 'init') {
     await ensureVaultReady({ vaultPath, keyPath, allowOverwrite: true });
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw('init', { vaultPath, keyPath });
+    }
     console.log('OK');
     process.exit(0);
   }
@@ -599,6 +607,11 @@ if (VAULT_COMMANDS.has(cmd)) {
       });
     }
 
+    if (GLOBAL_FORMAT === 'openclaw') {
+      sendOpenClaw('doctor', { ok: res.ok, code: res.ok ? 0 : 2, data: res, errors: res.ok ? [] : ['dotkc doctor: checks failed'] });
+      process.exit(res.ok ? 0 : 2);
+    }
+
     if (jsonOut) {
       process.stdout.write(JSON.stringify(res, null, 2) + '\n');
       process.exit(res.ok ? 0 : 2);
@@ -649,6 +662,7 @@ if (VAULT_COMMANDS.has(cmd)) {
   if (sub === 'set') {
     const [service, category, K, value] = args;
     if (!service || !category || !K) usage(1);
+    const existsBefore = data?.[service]?.[category] && (K in (data[service][category] ?? {}));
 
     let secret;
     if (typeof value !== 'string') {
@@ -666,6 +680,11 @@ if (VAULT_COMMANDS.has(cmd)) {
     data[service][category] ??= {};
     data[service][category][K] = secret;
     save(data);
+
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw('set', { service, category, key: K, updated: Boolean(existsBefore) });
+    }
+
     console.log('OK');
     process.exit(0);
   }
@@ -673,6 +692,9 @@ if (VAULT_COMMANDS.has(cmd)) {
   if (sub === 'get') {
     if (NO_LEAK) {
       die('DOTKC_NO_LEAK=1: dotkc get is disabled because it prints raw secret values.', 2);
+    }
+    if (GLOBAL_FORMAT === 'openclaw') {
+      die('dotkc get is not supported with --openclaw because it would return raw secret values. Use `dotkc run --openclaw <spec>` (redacted) or inject via `dotkc run <spec> -- <cmd>`.', 2);
     }
     const [service, category, K] = args;
     if (!service || !category || !K) usage(1);
@@ -687,6 +709,10 @@ if (VAULT_COMMANDS.has(cmd)) {
     if (!service || !category || !K) usage(1);
     const cat = data?.[service]?.[category];
     if (!cat || !(K in cat)) {
+      if (GLOBAL_FORMAT === 'openclaw') {
+        sendOpenClaw('del', { ok: false, code: 3, data: { service, category, key: K }, errors: [`NOT_FOUND: ${service}:${category}:${K}`] });
+        process.exit(3);
+      }
       console.error(`NOT_FOUND: ${service}:${category}:${K}`);
       process.exit(3);
     }
@@ -696,6 +722,9 @@ if (VAULT_COMMANDS.has(cmd)) {
       if (Object.keys(data[service]).length === 0) delete data[service];
     }
     save(data);
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw('del', { service, category, key: K });
+    }
     console.log('OK');
     process.exit(0);
   }
@@ -708,12 +737,18 @@ if (VAULT_COMMANDS.has(cmd)) {
 
     if (!category) {
       const cats = Object.keys(svc).sort((a, b) => a.localeCompare(b));
+      if (GLOBAL_FORMAT === 'openclaw') {
+        okOpenClaw('list', { service, categories: cats });
+      }
       for (const c of cats) console.log(c);
       process.exit(0);
     }
 
     const cat = svc?.[category] ?? {};
     const keys = Object.keys(cat).sort((a, b) => a.localeCompare(b));
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw('list', { service, category, keys });
+    }
     for (const k of keys) console.log(k);
     process.exit(0);
   }
@@ -741,6 +776,10 @@ if (VAULT_COMMANDS.has(cmd)) {
     matches.sort((a, b) =>
       `${a.service}:${a.category}:${a.key}`.localeCompare(`${b.service}:${b.category}:${b.key}`),
     );
+
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw('search', { query: q, matches });
+    }
 
     if (jsonOut) {
       process.stdout.write(JSON.stringify(matches, null, 2) + '\n');
@@ -819,6 +858,13 @@ if (VAULT_COMMANDS.has(cmd)) {
       console.error('---');
     }
 
+    if (GLOBAL_FORMAT === 'openclaw') {
+      const envOut = {};
+      for (const k of keys) envOut[k] = unsafeValues ? resolved[k] : redact(resolved[k]);
+      sendOpenClaw('export', { ok: true, code: 0, data: { redacted: !unsafeValues, env: envOut } });
+      process.exit(0);
+    }
+
     for (const k of keys) {
       process.stdout.write(`${k}=${unsafeValues ? resolved[k] : redact(resolved[k])}\n`);
     }
@@ -866,6 +912,9 @@ if (VAULT_COMMANDS.has(cmd)) {
     }
 
     save(data);
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw(sub, { src, dst, overwritten: dstExists, moved: sub === 'move' });
+    }
     console.log('OK');
     process.exit(0);
   }
@@ -905,6 +954,9 @@ if (VAULT_COMMANDS.has(cmd)) {
     }
 
     save(data);
+    if (GLOBAL_FORMAT === 'openclaw') {
+      okOpenClaw('import', { service, category, filePath, imported: written, totalFound: keys.length });
+    }
     console.log(`OK (${written} secrets imported into vault)`);
     process.exit(0);
   }
