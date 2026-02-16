@@ -19,6 +19,10 @@ const PKG_PATH = new URL('../package.json', import.meta.url);
 const PKG = JSON.parse(fs.readFileSync(PKG_PATH, 'utf8'));
 const VERSION = PKG.version;
 
+// Hard safety switch: when enabled, dotkc refuses to print secret values.
+// Intended for agent/OpenClaw hosts.
+const NO_LEAK = String(process.env.DOTKC_NO_LEAK ?? '') === '1';
+
 import {
   defaultVaultKeyPath,
   defaultVaultPath,
@@ -100,6 +104,9 @@ Vault options:
 Run options (vault):
   --json                  Inspect mode: output JSON instead of KEY=VALUE lines
   --unsafe-values         Inspect mode: print full secret values (unsafe)
+
+Safety (env):
+  DOTKC_NO_LEAK=1          Refuse operations that would print secret values (blocks: get, --unsafe-values)
   --format <name>         Inspect mode: structured output format (e.g. openclaw)
 
   --dotenv                Load dotenv files if present (.env then .env.local)
@@ -133,6 +140,7 @@ Vault backend notes:
 - Key file defaults to: ~/.dotkc/key (chmod 600). Copy this key to any machine that should decrypt the vault.
   - Override with: DOTKC_VAULT_KEY_PATH=/path/to/key
 - Vault uses strong encryption (AES-256-GCM) with a random 32-byte key.
+- For OpenClaw/agent hosts, consider: DOTKC_NO_LEAK=1 (refuse printing secret values).
 `;
   if (GLOBAL_FORMAT === 'openclaw') {
     sendOpenClaw('help', {
@@ -663,6 +671,9 @@ if (VAULT_COMMANDS.has(cmd)) {
   }
 
   if (sub === 'get') {
+    if (NO_LEAK) {
+      die('DOTKC_NO_LEAK=1: dotkc get is disabled because it prints raw secret values.', 2);
+    }
     const [service, category, K] = args;
     if (!service || !category || !K) usage(1);
     const v = data?.[service]?.[category]?.[K];
@@ -797,6 +808,10 @@ if (VAULT_COMMANDS.has(cmd)) {
     };
 
     const keys = Object.keys(resolved).sort((a, b) => a.localeCompare(b));
+
+    if (unsafeValues && NO_LEAK) {
+      die('DOTKC_NO_LEAK=1: refusing --unsafe-values (would print raw secret values).', 2);
+    }
 
     if (unsafeValues) {
       console.error('WARNING: Exporting FULL secret values to stdout.');
@@ -970,6 +985,10 @@ if (VAULT_COMMANDS.has(cmd)) {
         .flatMap((l) => l.split(',').map((x) => x.trim()).filter(Boolean));
     };
 
+    if (unsafeValues && NO_LEAK) {
+      die('DOTKC_NO_LEAK=1: refusing --unsafe-values (would print raw secret values).', 2);
+    }
+
     const fileSpecs = specFiles.flatMap(readSpecFile);
     const specStr = [...fileSpecs, ...specParts].join(' ').trim();
     if (!specStr) usage(1);
@@ -1035,6 +1054,9 @@ if (VAULT_COMMANDS.has(cmd)) {
     if (inspect) {
       const keys = Object.keys(resolved).sort((a, b) => a.localeCompare(b));
       const warnUnsafe = () => {
+        if (NO_LEAK) {
+          die('DOTKC_NO_LEAK=1: refusing --unsafe-values (would print raw secret values).', 2);
+        }
         console.error('WARNING: Printing FULL secret values to stdout.');
         console.error('They may be captured by terminal scrollback, shell logging, CI logs, or screen recordings.');
         console.error('Proceed only on a trusted personal machine.');

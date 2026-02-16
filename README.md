@@ -40,6 +40,15 @@ export DOTKC_VAULT_PATH="/path/to/dotkc.vault"
 export DOTKC_VAULT_KEY_PATH="$HOME/.dotkc/key"
 ```
 
+### No-leak mode (recommended for OpenClaw)
+
+Set `DOTKC_NO_LEAK=1` to refuse operations that would print secret values.
+
+- Blocks: `dotkc get`, `--unsafe-values`
+- Still allows: `dotkc run ... -- <cmd>` (env injection without printing values)
+
+---
+
 ### Backup settings (P0 safety)
 
 Before overwriting the vault, dotkc creates a backup and refuses to write if backup fails.

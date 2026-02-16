@@ -57,7 +57,7 @@
       <div class="container topbar__inner">
         <a class="brand" href="#top">
           <span class="brand__mark">dotkc</span>
-          <span class="brand__ver">v0.3.8</span>
+          <span class="brand__ver">v0.3.9</span>
           <span class="brand__tag">Encrypted vault secrets for OpenClaw</span>
         </a>
         <nav class="nav" data-guide-panel="human">
@@ -508,7 +508,7 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
                 <li><strong>Prefer inspect redaction:</strong> use <code>dotkc run ... --openclaw</code> for checks (never <code>--unsafe-values</code>).</li>
                 <li><strong>Prefer spec files:</strong> agents should use <code>--spec-file</code>, not ad-hoc secret names in prompts.</li>
                 <li><strong>Minimize shell blast radius:</strong> restrict exec approvals/allowlists to the commands you actually need (e.g. <code>pnpm dev</code>, <code>npm test</code>).</li>
-                <li><strong>Keep transcripts clean:</strong> do not run <code>dotkc get</code> in agent workflows (it prints raw values).</li>
+                <li><strong>Keep transcripts clean:</strong> do not run <code>dotkc get</code> in agent workflows (it prints raw values). Better: set <code>DOTKC_NO_LEAK=1</code> on the OpenClaw host to enforce this.</li>
               </ul>
               <pre><code># structured discovery for agents
 

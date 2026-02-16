@@ -32,6 +32,12 @@
         <li>Using <code>--unsafe-values</code> unless absolutely necessary</li>
       </ul>
 
+      <h2>Enforce no-leak mode</h2>
+      <p>
+        On OpenClaw/agent hosts, set <code>DOTKC_NO_LEAK=1</code> to make dotkc refuse operations that would print secret values
+        (blocks <code>dotkc get</code> and <code>--unsafe-values</code>).
+      </p>
+
       <p><a href="/">Back to dotkc manual</a></p>
     </main>
   </body>
