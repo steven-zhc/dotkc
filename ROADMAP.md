@@ -11,11 +11,14 @@ This roadmap focuses on **dotkc itself** (vault backend + CLI semantics). OpenCl
 ## P0 — Agent-safe consistency
 
 ### 1) OpenClaw envelope coverage (all commands)
+**Status:** 🟡 partial
+
 **Goal:** make output shape predictable for tools.
 
-- Extend `--openclaw` envelope behavior beyond help/version/status/run to:
-  - `doctor`, `list`, `search`, `export`, `copy`, `move`, `import`, `set`, `del`
-- Ensure errors use a stable code + message format.
+- ✅ Added OpenClaw envelope for: `doctor`, `list`, `search`, `export`, `copy`, `move`, `import`, `set`, `del`, `init`
+- ⬜ Remaining: unify stable error codes/messages across all commands; consider `key install` envelope
+
+Note: `get --openclaw` is intentionally blocked to avoid returning raw secret values to models.
 
 Deliverables:
 - One output schema doc section (in README + docs)
