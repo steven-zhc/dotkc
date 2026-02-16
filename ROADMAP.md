@@ -22,16 +22,17 @@ Deliverables:
 - Golden examples for each command
 
 ### 2) No-leak mode (hard safety switch)
+**Status:** ✅ implemented (env-only)
+
 **Goal:** make it easy to guarantee “no secrets printed”.
 
-Options:
+Option:
 - Env: `DOTKC_NO_LEAK=1`
-- Flag: `--no-leak`
 
-Behavior:
-- Disallow `get`
-- Disallow `--unsafe-values`
-- Ensure `export` always redacts
+Behavior (enforced):
+- Block `get` (prints raw values)
+- Block `--unsafe-values` (for `run` inspect and `export`)
+- `export` remains redacted by default
 
 ### 3) Stronger redaction primitives
 **Goal:** redaction is consistent and explicit.
@@ -50,10 +51,12 @@ Behavior:
 - Add `data.suggestions[]` for common fixes
 
 ### 6) Docs automation
-- Keep `docs/index.html` agent JSON + version in sync (already added)
-- Add CI check: fail if `npm run docs:sync` changes files
+**Status:** 🟡 partial
 
-## P2 — Packaging
+- ✅ Keep `docs/index.html` agent JSON + version in sync (`npm run docs:sync`)
+- ⬜ Add CI check: fail if `npm run docs:sync` changes files
+
+## P2 — Packaging & discoverability
 
 ### 7) Optional library mode
 - Extract vault engine to a small internal module for reuse
@@ -61,3 +64,14 @@ Behavior:
 ### 8) Release polish
 - Changelog automation
 - More explicit exit codes per failure mode
+
+### 9) SEO / indexing (docs site)
+**Status:** ✅ baseline shipped
+
+- robots.txt + sitemap.xml
+- Canonical + OG/Twitter meta + JSON-LD
+- Basic OG image (`/og.png`)
+- A few crawlable subpages added to sitemap
+
+Next:
+- Submit sitemap in Google Search Console and request indexing
