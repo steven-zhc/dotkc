@@ -24,6 +24,9 @@ dotkc’s core promise:
 ### 1) OpenClaw envelope coverage (all commands)
 **Status:** 🟡 partial
 
+Motivation:
+- Tool outputs are often persisted to session transcripts; stable structured output lets plugins enforce fail-closed policies reliably.
+
 What’s done:
 - ✅ Added OpenClaw envelope for: `help`, `version`, `status`, `run` (inspect), and now: `doctor`, `list`, `search`, `export`, `copy`, `move`, `import`, `set`, `del`, `init`
 - ✅ `get --openclaw` is intentionally blocked to avoid returning raw values to models
@@ -51,6 +54,9 @@ Next:
 ### 3) “Break-glass” unsafe output (intentional, loud)
 **Status:** ⬜ not yet
 
+Motivation:
+- Prompt injection / operator error can trick agents into unsafe modes; break-glass should be hard to enable accidentally.
+
 Pain point:
 - Today unsafe is a flag, but it’s still easy to accidentally misuse.
 
@@ -63,6 +69,9 @@ Proposal:
 ## P1 — UX & reliability
 
 ### 4) Spec file parsing: better diagnostics
+
+Motivation:
+- Spec allowlists are the main policy boundary; when they fail, users need precise fixes (line numbers, suggestions) without dumping values.
 - Line numbers + specific errors
 - Better `doctor` hints when spec files are missing/invalid
 
