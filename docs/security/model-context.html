@@ -34,7 +34,8 @@
 
       <h2>Enforce no-leak mode</h2>
       <p>
-        On OpenClaw/agent hosts, set <code>DOTKC_NO_LEAK=1</code> to make dotkc refuse operations that would print secret values
+        On OpenClaw/agent hosts, use <code>DOTKC_NO_LEAK=1</code> to make dotkc refuse operations that would print secret values.
+        If you use the dotkc OpenClaw plugin, it enforces <code>DOTKC_NO_LEAK=1</code> for dotkc subprocesses by default.
         (blocks <code>dotkc get</code> and <code>--unsafe-values</code>).
       </p>
 

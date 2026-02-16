@@ -508,7 +508,7 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
                 <li><strong>Prefer inspect redaction:</strong> use <code>dotkc run ... --openclaw</code> for checks (never <code>--unsafe-values</code>).</li>
                 <li><strong>Prefer spec files:</strong> agents should use <code>--spec-file</code>, not ad-hoc secret names in prompts.</li>
                 <li><strong>Minimize shell blast radius:</strong> restrict exec approvals/allowlists to the commands you actually need (e.g. <code>pnpm dev</code>, <code>npm test</code>).</li>
-                <li><strong>Keep transcripts clean:</strong> do not run <code>dotkc get</code> in agent workflows (it prints raw values). Better: set <code>DOTKC_NO_LEAK=1</code> on the OpenClaw host to enforce this.</li>
+                <li><strong>Keep transcripts clean:</strong> do not run <code>dotkc get</code> in agent workflows (it prints raw values). If you use the <a href="https://dotkc-openclaw.hczhang.com/"><strong>dotkc OpenClaw plugin</strong></a>, it enforces <code>DOTKC_NO_LEAK=1</code> for dotkc subprocesses by default.</li>
               </ul>
               <pre><code># structured discovery for agents
 

@@ -18,18 +18,30 @@
       <h2>What you get</h2>
       <ul>
         <li><strong>Typed tool schema</strong> (predictable params/output)</li>
-        <li><strong>Defensive redaction</strong> (extra guardrail against leaking secrets into model transcripts)</li>
+        <li><strong>Defensive redaction + leak detection (fail-closed)</strong> (extra guardrail against leaking secrets into model transcripts)</li>
         <li>Cleaner OpenClaw tool allowlists/deny lists</li>
       </ul>
 
       <h2>Quick start</h2>
-      <pre><code># install plugin (local link)
-openclaw plugins install -l /path/to/openclaw-plugin-dotkc
+      <pre><code># install plugin (recommended: npm)
+openclaw plugins install dotkc-openclaw@0.1.4
+openclaw gateway restart
+
+# or: local dev link
+openclaw plugins install -l /path/to/dotkc-openclaw
 openclaw gateway restart
 
 # allow plugin tools
 # tools.allow: ["dotkc"]
 </code></pre>
+
+      <p>
+        Notes:
+      </p>
+      <ul>
+        <li>The plugin bundles <code>dotkc</code> (no global dotkc install required).</li>
+        <li>The plugin enforces <code>DOTKC_NO_LEAK=1</code> for dotkc subprocesses by default.</li>
+      </ul>
 
       <p><a href="/">Back to dotkc manual</a></p>
     </main>
