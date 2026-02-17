@@ -516,12 +516,7 @@ brave:web:BRAVE_API_KEY
 # 3) restart gateway with env injected (key never printed)
 dotkc run --spec-file ./dotkc.spec -- openclaw gateway restart</code></pre>
 
-                <p class="micro"><strong>Option B:</strong> generate a local env file for a service manager (more automation, but plaintext on disk)</p>
-                <pre><code># writes plaintext to ~/.openclaw/secrets.env (keep permissions tight)
-dotkc export brave:web:BRAVE_API_KEY --unsafe-values &gt; ~/.openclaw/secrets.env
-chmod 600 ~/.openclaw/secrets.env
-
-# then load it via launchd/systemd when starting the gateway</code></pre>
+                <p class="micro"><strong>Note:</strong> avoid generating plaintext <code>.env</code> / env files on disk. Prefer Option A.</p>
               </div>
             </div>
 
