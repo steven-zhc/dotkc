@@ -497,6 +497,32 @@ dotkc run --spec-file ./dotkc.spec -- pnpm dev</code></pre>
                 Want typed tools instead of shelling out? See the OpenClaw plugin:
                 <a href="https://dotkc-openclaw.hczhang.com/"><strong>dotkc-openclaw.hczhang.com</strong></a>
               </p>
+
+              <div class="block" style="margin-top: 12px">
+                <h4 style="margin: 0 0 6px 0">Case study: manage <code>BRAVE_API_KEY</code> for OpenClaw web search</h4>
+                <p class="micro">
+                  OpenClaw <code>web_search</code> uses the <code>BRAVE_API_KEY</code> environment variable. Keep it out of
+                  <code>openclaw.json</code> by managing it in dotkc.
+                </p>
+
+                <p class="micro"><strong>Option A (recommended):</strong> inject env when starting/restarting the Gateway</p>
+                <pre><code># 1) store key (interactive hidden prompt)
+dotkc set brave web BRAVE_API_KEY
+
+# 2) allowlist (NO values)
+# ./dotkc.spec
+brave:web:BRAVE_API_KEY
+
+# 3) restart gateway with env injected (key never printed)
+dotkc run --spec-file ./dotkc.spec -- openclaw gateway restart</code></pre>
+
+                <p class="micro"><strong>Option B:</strong> generate a local env file for a service manager (more automation, but plaintext on disk)</p>
+                <pre><code># writes plaintext to ~/.openclaw/secrets.env (keep permissions tight)
+dotkc export brave:web:BRAVE_API_KEY --unsafe-values &gt; ~/.openclaw/secrets.env
+chmod 600 ~/.openclaw/secrets.env
+
+# then load it via launchd/systemd when starting the gateway</code></pre>
+              </div>
             </div>
 
             <div class="block">
