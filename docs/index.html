@@ -513,8 +513,15 @@ dotkc set brave web BRAVE_API_KEY
 # ./dotkc.spec
 brave:web:BRAVE_API_KEY
 
-# 3) restart gateway with env injected (key never printed)
-dotkc run --spec-file ./dotkc.spec -- openclaw gateway restart</code></pre>
+# 3) two common startup styles
+
+# (a) manual / ad-hoc restart
+# key never printed; only injected into the gateway process env
+dotkc run --spec-file ./dotkc.spec -- openclaw gateway restart
+
+# (b) service-managed (launchd/systemd): run a wrapper as the service command
+# start-openclaw.sh:
+#   exec dotkc run --spec-file ./dotkc.spec -- openclaw gateway start</code></pre>
 
                 <p class="micro"><strong>Note:</strong> avoid generating plaintext <code>.env</code> / env files on disk. Prefer Option A.</p>
               </div>
